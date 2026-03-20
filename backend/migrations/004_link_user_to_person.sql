@@ -1,0 +1,2 @@
+ALTER TABLE persons ALTER COLUMN family_id DROP NOT NULL;
+ALTER TABLE users ADD COLUMN person_id UUID REFERENCES persons(id);

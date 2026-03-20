@@ -1,0 +1,1 @@
+ALTER TABLE persons ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'family_only';
