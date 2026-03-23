@@ -33,7 +33,6 @@ export default function Navbar() {
 
     const NAV_LINKS = [
         { href: "/families", label: t("nav_families") },
-        { href: "/finder", label: t("nav_search") },
         { href: "/me", label: t("nav_my_profile") },
     ]
 
@@ -71,7 +70,7 @@ export default function Navbar() {
         } finally { setActing(null) }
     }
 
-    const isNoNavRoute = pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/family-tree") || pathname?.startsWith("/invitations") || pathname?.startsWith("/person") || pathname === "/families" || pathname === "/me" || pathname === "/settings" || pathname === "/invite" || pathname === "/finder" || pathname === "/reminders" || pathname === "/memories"
+    const isNoNavRoute = pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/family-tree") || pathname?.startsWith("/invitations") || pathname?.startsWith("/person") || pathname === "/families" || pathname === "/me" || pathname === "/settings" || pathname === "/invite" || pathname === "/reminders" || pathname === "/memories"
     if (!loggedIn || isNoNavRoute) return null
 
     return (

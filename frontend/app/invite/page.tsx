@@ -10,6 +10,8 @@ import { isAuthenticated } from "@/lib/auth"
 import { getFamilies, Family } from "@/services/familyService"
 import { inviteMember, getInvitations, Invitation } from "@/services/invitationService"
 import AppSidebar from "@/components/AppSidebar"
+import { useT } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 type InviteStatus = "pending" | "accepted" | "expired"
 
@@ -21,6 +23,8 @@ const STATUS_CFG: Record<InviteStatus, { label: string; bg: string; color: strin
 
 export default function InvitePage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const [family, setFamily] = useState<Family | null>(null)
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [email, setEmail] = useState("")
@@ -64,7 +68,7 @@ export default function InvitePage() {
             setMessage("")
             setSentFlash(true)
             setTimeout(() => setSentFlash(false), 800)
-            showToast("Invitation sent!")
+            showToast(t("invite_toast_sent"))
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : "Failed to send invitation")
         } finally {
@@ -76,12 +80,12 @@ export default function InvitePage() {
         navigator.clipboard.writeText(shareLink).catch(() => {})
         setCopied(true)
         setTimeout(() => setCopied(false), 2200)
-        showToast("Link copied to clipboard!")
+        showToast(t("invite_toast_link_copied"))
     }
 
     const handleResend = (id: string) => {
         setInvitations(prev => prev.map(inv => inv.id === id ? { ...inv, status: "pending" } : inv))
-        showToast("Invitation resent!")
+        showToast(t("invite_toast_resent"))
     }
 
     const pendingCount  = invitations.filter(i => i.status === "pending").length
@@ -94,7 +98,7 @@ export default function InvitePage() {
             {/* Toast */}
             {toast && (
                 <div style={{
-                    position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+                    position: "fixed", bottom: isMobile ? 80 : 28, left: "50%", transform: "translateX(-50%)",
                     background: "#1A1A2E", color: "#fff", borderRadius: 40, padding: "11px 22px",
                     fontSize: 13.5, fontWeight: 600, boxShadow: "0 8px 28px rgba(0,0,0,0.22)",
                     zIndex: 9999, whiteSpace: "nowrap",
@@ -107,13 +111,13 @@ export default function InvitePage() {
 
                 {/* Header */}
                 <div style={{
-                    padding: "22px 36px", background: "#fff",
+                    padding: isMobile ? "14px 16px" : "22px 36px", background: "#fff",
                     borderBottom: "1px solid #F0F0F0",
                     boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
                     flexShrink: 0,
                 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <button
                                 onClick={() => router.back()}
                                 style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 14, fontWeight: 600, padding: 0 }}
@@ -121,25 +125,27 @@ export default function InvitePage() {
                                 <ArrowLeft size={17} />
                             </button>
                             <div>
-                                <h1 style={{ fontSize: 24, fontWeight: 900, color: "#1A1A2E", letterSpacing: -0.5 }}>
-                                    Invite to Family Tree
+                                <h1 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: "#1A1A2E", letterSpacing: -0.5 }}>
+                                    {t("invite_page_title")}
                                 </h1>
-                                <p style={{ fontSize: 14, color: "#9E9E9E", marginTop: 3 }}>
-                                    Send an invitation by email or share a link to grow your family tree
-                                </p>
+                                {!isMobile && (
+                                    <p style={{ fontSize: 14, color: "#9E9E9E", marginTop: 3 }}>
+                                        {t("invite_page_subtitle")}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                         {/* Quick stats */}
-                        <div style={{ display: "flex", gap: 12 }}>
+                        <div style={{ display: "flex", gap: isMobile ? 8 : 12 }}>
                             {[
-                                { label: "Sent",     value: invitations.length, bg: "#F3E5F5", color: "#7B1FA2" },
-                                { label: "Accepted", value: acceptedCount,       bg: "#E8F5E9", color: "#2E7D32" },
-                                { label: "Pending",  value: pendingCount,        bg: "#FFF8E1", color: "#E65100" },
+                                { label: t("invite_sent_label"),     value: invitations.length, bg: "#F3E5F5", color: "#7B1FA2" },
+                                { label: t("invite_accepted_label"), value: acceptedCount,       bg: "#E8F5E9", color: "#2E7D32" },
+                                { label: t("invite_pending_label"),  value: pendingCount,        bg: "#FFF8E1", color: "#E65100" },
                             ].map(s => (
-                                <div key={s.label} style={{ textAlign: "center", background: s.bg, borderRadius: 12, padding: "9px 18px" }}>
-                                    <p style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</p>
-                                    <p style={{ fontSize: 10.5, color: "#888", marginTop: 2 }}>{s.label}</p>
+                                <div key={s.label} style={{ textAlign: "center", background: s.bg, borderRadius: 10, padding: isMobile ? "6px 10px" : "9px 18px" }}>
+                                    <p style={{ fontSize: isMobile ? 16 : 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</p>
+                                    <p style={{ fontSize: 9.5, color: "#888", marginTop: 2 }}>{s.label}</p>
                                 </div>
                             ))}
                         </div>
@@ -147,11 +153,11 @@ export default function InvitePage() {
                 </div>
 
                 {/* Body */}
-                <div style={{ flex: 1, overflow: "auto", padding: "32px 36px", background: "#F7F5F0" }}>
+                <div style={{ flex: 1, overflow: "auto", padding: isMobile ? "16px" : "32px 36px", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined, background: "#F7F5F0" }}>
                     <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
 
                         {/* Two columns: Email + Link */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
 
                             {/* Email invite card */}
                             <div style={{
@@ -168,15 +174,15 @@ export default function InvitePage() {
                                         <Mail size={20} color="#2E7D32" />
                                     </div>
                                     <div>
-                                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1A1A2E" }}>Send by Email</h2>
-                                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>Invite someone directly to your tree</p>
+                                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1A1A2E" }}>{t("invite_send_email_title")}</h2>
+                                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>{t("invite_send_email_desc")}</p>
                                     </div>
                                 </div>
 
                                 {/* Email input */}
                                 <div>
                                     <label style={{ fontSize: 11.5, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.7, textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-                                        Email address
+                                        {t("invite_email_address")}
                                     </label>
                                     <div style={{
                                         display: "flex", alignItems: "center", gap: 10,
@@ -201,9 +207,9 @@ export default function InvitePage() {
                                 <div>
                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                                         <label style={{ fontSize: 11.5, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.7, textTransform: "uppercase" }}>
-                                            Personal message
+                                            {t("invite_personal_msg")}
                                         </label>
-                                        <span style={{ fontSize: 11, color: "#BDBDBD" }}>optional</span>
+                                        <span style={{ fontSize: 11, color: "#BDBDBD" }}>{t("invite_optional")}</span>
                                     </div>
                                     <textarea
                                         value={message}
@@ -251,7 +257,7 @@ export default function InvitePage() {
                                             Sending…
                                         </>
                                     ) : (
-                                        <><Send size={16} /> Send Invitation</>
+                                        <><Send size={16} /> {t("invite_send_btn")}</>
                                     )}
                                 </button>
                             </div>
@@ -271,15 +277,15 @@ export default function InvitePage() {
                                         <Link2 size={20} color="#6A1B9A" />
                                     </div>
                                     <div>
-                                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1A1A2E" }}>Share Link</h2>
-                                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>Anyone with the link can request to join</p>
+                                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1A1A2E" }}>{t("invite_share_link_title")}</h2>
+                                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>{t("invite_share_link_desc")}</p>
                                     </div>
                                 </div>
 
                                 {/* Link box */}
                                 <div>
                                     <label style={{ fontSize: 11.5, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.7, textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-                                        Your family invite link
+                                        {t("invite_link_label")}
                                     </label>
                                     <div style={{
                                         display: "flex", alignItems: "center", gap: 10,
@@ -288,7 +294,7 @@ export default function InvitePage() {
                                     }}>
                                         <Link2 size={15} color="#BDBDBD" style={{ flexShrink: 0 }} />
                                         <span style={{ flex: 1, fontSize: 13, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                            {shareLink || "Loading…"}
+                                            {shareLink || t("loading")}
                                         </span>
                                     </div>
                                 </div>
@@ -309,8 +315,8 @@ export default function InvitePage() {
                                     }}
                                 >
                                     {copied
-                                        ? <><Check size={16} strokeWidth={3} /> Copied!</>
-                                        : <><Copy size={16} /> Copy Link</>}
+                                        ? <><Check size={16} strokeWidth={3} /> {t("invite_copied")}</>
+                                        : <><Copy size={16} /> {t("invite_copy_btn")}</>}
                                 </button>
 
                                 {/* Info note */}
@@ -318,9 +324,9 @@ export default function InvitePage() {
                                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                                         <Sparkles size={15} color="#7B1FA2" style={{ flexShrink: 0, marginTop: 1 }} />
                                         <div>
-                                            <p style={{ fontSize: 12.5, fontWeight: 700, color: "#4A148C", marginBottom: 3 }}>How it works</p>
+                                            <p style={{ fontSize: 12.5, fontWeight: 700, color: "#4A148C", marginBottom: 3 }}>{t("invite_how_works")}</p>
                                             <p style={{ fontSize: 12, color: "#7B1FA2", lineHeight: 1.55 }}>
-                                                When someone opens this link, they&apos;ll create an account and you&apos;ll receive a request to connect them to your tree.
+                                                {t("invite_how_works_desc")}
                                             </p>
                                         </div>
                                     </div>
@@ -341,16 +347,16 @@ export default function InvitePage() {
                                     <Users size={17} color="#2E7D32" />
                                 </div>
                                 <div>
-                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1A1A2E" }}>Sent Invitations</h3>
-                                    <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>{invitations.length} invitations total</p>
+                                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1A1A2E" }}>{t("invite_sent_title")}</h3>
+                                    <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>{invitations.length} {t("invite_sent_count")}</p>
                                 </div>
                             </div>
 
                             {invitations.length === 0 ? (
                                 <div style={{ textAlign: "center", padding: "32px", color: "#BDBDBD" }}>
                                     <p style={{ fontSize: 28, marginBottom: 10 }}>📬</p>
-                                    <p style={{ fontSize: 14, fontWeight: 600 }}>No invitations sent yet</p>
-                                    <p style={{ fontSize: 12, marginTop: 4 }}>Send your first invitation above</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600 }}>{t("invite_no_sent")}</p>
+                                    <p style={{ fontSize: 12, marginTop: 4 }}>{t("invite_no_sent_desc")}</p>
                                 </div>
                             ) : (
                                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -379,8 +385,8 @@ export default function InvitePage() {
                                                 </div>
 
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <p style={{ fontSize: 13.5, fontWeight: 700, color: "#1A1A2E", marginBottom: 2 }}>Invited as {inv.role}</p>
-                                                    <p style={{ fontSize: 11, color: "#BDBDBD" }}>Sent {new Date(inv.created_at).toLocaleDateString()}</p>
+                                                    <p style={{ fontSize: 13.5, fontWeight: 700, color: "#1A1A2E", marginBottom: 2 }}>{t("invite_invited_as")} {inv.role}</p>
+                                                    <p style={{ fontSize: 11, color: "#BDBDBD" }}>{t("invite_sent_on")} {new Date(inv.created_at).toLocaleDateString()}</p>
                                                 </div>
 
                                                 <div style={{
@@ -406,7 +412,7 @@ export default function InvitePage() {
                                                         onMouseEnter={e => { e.currentTarget.style.borderColor = "#4CAF50"; e.currentTarget.style.color = "#4CAF50" }}
                                                         onMouseLeave={e => { e.currentTarget.style.borderColor = "#E0E0E0"; e.currentTarget.style.color = "#888" }}
                                                     >
-                                                        <RefreshCw size={11} /> Resend
+                                                        <RefreshCw size={11} /> {t("invite_resend")}
                                                     </button>
                                                 )}
                                             </div>

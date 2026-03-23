@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
     Edit2, TreePine, Camera, Calendar, Mail,
-    MapPin, Save, X,
+    MapPin, Save, X, Settings,
 } from "lucide-react"
 import { apiFetch } from "@/lib/apiFetch"
 import { isAuthenticated } from "@/lib/auth"
@@ -12,6 +12,8 @@ import API_BASE from "@/services/api"
 import { updatePerson } from "@/services/personEditService"
 import { Person } from "@/services/personService"
 import AppSidebar from "@/components/AppSidebar"
+import { useT } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 interface Relative {
     id: string
@@ -37,6 +39,8 @@ function birthYear(iso: string | null | undefined): string {
 
 export default function MePage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
 
     const [person, setPerson]     = useState<Person | null>(null)
     const [userEmail, setUserEmail] = useState("")
@@ -64,7 +68,7 @@ export default function MePage() {
             .then(r => r.json())
             .then(data => {
                 const p: Person | null = data.person ?? null
-                if (!p) { setError("Profile not found"); setLoading(false); return }
+                if (!p) { setError(t("me_not_found")); setLoading(false); return }
                 setPerson(p)
                 setFirstName(p.first_name ?? "")
                 setLastName(p.last_name ?? "")
@@ -96,7 +100,7 @@ export default function MePage() {
 
                 setLoading(false)
             })
-            .catch(() => { setError("Failed to load profile"); setLoading(false) })
+            .catch(() => { setError(t("me_not_found")); setLoading(false) })
     }, [router]) // eslint-disable-line
 
     const startEdit = () => {
@@ -122,7 +126,7 @@ export default function MePage() {
             })
             setPerson(updated)
             setEditing(false)
-        } catch { setError("Failed to save") }
+        } catch { setError(t("me_saving")) }
         finally { setSaving(false) }
     }
 
@@ -170,7 +174,7 @@ export default function MePage() {
             <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
                 <AppSidebar activeSection="profile" />
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <p style={{ color: "#9E9E9E", fontSize: 14 }}>Loading…</p>
+                    <p style={{ color: "#9E9E9E", fontSize: 14 }}>{t("loading")}</p>
                 </div>
             </div>
         )
@@ -181,7 +185,7 @@ export default function MePage() {
             <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
                 <AppSidebar activeSection="profile" />
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <p style={{ color: "#EF5350", fontSize: 14 }}>{error || "Profile not found"}</p>
+                    <p style={{ color: "#EF5350", fontSize: 14 }}>{error || t("me_not_found")}</p>
                 </div>
             </div>
         )
@@ -195,15 +199,27 @@ export default function MePage() {
 
                 {/* Header */}
                 <header style={{
-                    padding: "20px 32px", background: "#FFFFFF",
+                    padding: isMobile ? "14px 16px" : "20px 32px", background: "#FFFFFF",
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     boxShadow: "0 2px 12px rgba(0,0,0,0.05)", flexShrink: 0, zIndex: 10,
                 }}>
                     <div>
-                        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>My Profile</h1>
-                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>Your place in the family tree</p>
+                        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>{t("me_title")}</h1>
+                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>{t("me_subtitle")}</p>
                     </div>
                     <div style={{ display: "flex", gap: 10 }}>
+                        {isMobile && !editing && (
+                            <button
+                                onClick={() => router.push("/settings")}
+                                style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    width: 40, height: 40, background: "#F5F5F5",
+                                    border: "none", borderRadius: 10, cursor: "pointer",
+                                }}
+                            >
+                                <Settings size={18} color="#555" />
+                            </button>
+                        )}
                         {editing ? (
                             <>
                                 <button
@@ -215,7 +231,7 @@ export default function MePage() {
                                         fontSize: 14, fontWeight: 600, color: "#555",
                                     }}
                                 >
-                                    <X size={15} /> Cancel
+                                    <X size={15} /> {t("cancel")}
                                 </button>
                                 <button
                                     onClick={handleSave}
@@ -230,7 +246,7 @@ export default function MePage() {
                                         opacity: saving ? 0.7 : 1,
                                     }}
                                 >
-                                    <Save size={15} /> {saving ? "Saving…" : "Save Changes"}
+                                    <Save size={15} /> {saving ? t("me_saving") : t("me_save")}
                                 </button>
                             </>
                         ) : (
@@ -243,14 +259,14 @@ export default function MePage() {
                                     fontSize: 14, fontWeight: 600, color: "#555",
                                 }}
                             >
-                                <Edit2 size={15} /> Edit Profile
+                                <Edit2 size={15} /> {t("edit")}
                             </button>
                         )}
                     </div>
                 </header>
 
                 {/* Scrollable body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "#F7F5F0" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px" : "28px 32px", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined, background: "#F7F5F0" }}>
                     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
                         {error && (
@@ -262,8 +278,9 @@ export default function MePage() {
                         {/* Hero banner */}
                         <div style={{
                             background: "linear-gradient(135deg, #1B5E20, #2E7D32, #4CAF50)",
-                            borderRadius: 24, padding: "40px 44px", marginBottom: 28,
-                            display: "flex", alignItems: "center", gap: 36,
+                            borderRadius: 24, padding: isMobile ? "24px 20px" : "40px 44px", marginBottom: 28,
+                            display: "flex", flexDirection: isMobile ? "column" : "row",
+                            alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 20 : 36,
                             position: "relative", overflow: "hidden",
                         }}>
                             {/* Decorative circles */}
@@ -301,7 +318,7 @@ export default function MePage() {
                                         <input
                                             value={firstName}
                                             onChange={e => setFirstName(e.target.value)}
-                                            placeholder="First name"
+                                            placeholder={t("me_first_name")}
                                             style={{
                                                 fontSize: 24, fontWeight: 800, color: "#fff",
                                                 background: "rgba(255,255,255,0.15)",
@@ -313,7 +330,7 @@ export default function MePage() {
                                         <input
                                             value={lastName}
                                             onChange={e => setLastName(e.target.value)}
-                                            placeholder="Last name"
+                                            placeholder={t("me_last_name")}
                                             style={{
                                                 fontSize: 24, fontWeight: 800, color: "#fff",
                                                 background: "rgba(255,255,255,0.15)",
@@ -335,7 +352,7 @@ export default function MePage() {
                                             padding: "6px 16px", background: "rgba(255,255,255,0.2)", borderRadius: 20,
                                         }}>
                                             <TreePine size={14} color="rgba(255,255,255,0.9)" />
-                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Family Member</span>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{t("me_family_member")}</span>
                                         </div>
                                     )}
                                     {person.birth_date && (
@@ -345,7 +362,7 @@ export default function MePage() {
                                         }}>
                                             <Calendar size={13} color="rgba(255,255,255,0.8)" />
                                             <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)" }}>
-                                                Born {birthYear(person.birth_date)}
+                                                {t("me_born")} {birthYear(person.birth_date)}
                                             </span>
                                         </div>
                                     )}
@@ -355,13 +372,15 @@ export default function MePage() {
                             {/* Stats */}
                             <div style={{
                                 display: "flex", background: "rgba(255,255,255,0.12)",
-                                borderRadius: 18, padding: "20px 28px",
-                                position: "relative", zIndex: 1, flexShrink: 0,
+                                borderRadius: 18, padding: isMobile ? "14px 16px" : "20px 28px",
+                                position: "relative", zIndex: 1,
+                                flexShrink: 0, alignSelf: isMobile ? "stretch" : undefined,
+                                justifyContent: isMobile ? "space-around" : undefined,
                             }}>
                                 {[
-                                    { label: "Relatives",   value: relCount },
-                                    { label: "Memories",    value: 0 },
-                                    { label: "Generations", value: maxGenLevel || (lineage.length > 0 ? 1 : 0) },
+                                    { label: t("me_relatives"),      value: relCount },
+                                    { label: t("me_memories_count"), value: 0 },
+                                    { label: t("me_generations"),    value: maxGenLevel || (lineage.length > 0 ? 1 : 0) },
                                 ].map((stat, i) => (
                                     <div key={stat.label} style={{
                                         textAlign: "center", padding: "0 24px",
@@ -375,17 +394,17 @@ export default function MePage() {
                         </div>
 
                         {/* Two-column layout */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div className="two-col-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
 
                             {/* Left column */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
                                 {/* Personal info */}
                                 <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 20 }}>Personal Information</h3>
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 20 }}>{t("me_personal_info")}</h3>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                         {/* Birthday */}
-                                        <InfoRow icon={Calendar} label="Birthday">
+                                        <InfoRow icon={Calendar} label={t("me_birthday")}>
                                             {editing ? (
                                                 <input
                                                     type="date"
@@ -399,7 +418,7 @@ export default function MePage() {
                                         </InfoRow>
 
                                         {/* Email */}
-                                        <InfoRow icon={Mail} label="Email">
+                                        <InfoRow icon={Mail} label={t("me_email_label")}>
                                             {editing ? (
                                                 <input
                                                     type="email"
@@ -413,13 +432,13 @@ export default function MePage() {
                                         </InfoRow>
 
                                         {/* Location */}
-                                        <InfoRow icon={MapPin} label="Location">
+                                        <InfoRow icon={MapPin} label={t("me_location")}>
                                             {editing ? (
                                                 <input
                                                     type="text"
                                                     value={location}
                                                     onChange={e => setLocation(e.target.value)}
-                                                    placeholder="City, Country"
+                                                    placeholder={t("me_location_placeholder")}
                                                     style={editInputStyle}
                                                 />
                                             ) : (
@@ -428,7 +447,7 @@ export default function MePage() {
                                         </InfoRow>
 
                                         {/* Member since */}
-                                        <InfoRow icon={TreePine} label="Member Since">
+                                        <InfoRow icon={TreePine} label={t("me_member_since")}>
                                             <span>{formatDate(person.created_at || userCreatedAt)}</span>
                                         </InfoRow>
                                     </div>
@@ -436,13 +455,13 @@ export default function MePage() {
 
                                 {/* About Me */}
                                 <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 14 }}>About Me</h3>
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 14 }}>{t("me_about_me")}</h3>
                                     {editing ? (
                                         <textarea
                                             value={biography}
                                             onChange={e => setBiography(e.target.value)}
                                             rows={4}
-                                            placeholder="Tell your family about yourself…"
+                                            placeholder={t("me_bio_placeholder")}
                                             style={{
                                                 width: "100%", fontSize: 15, color: "#555", lineHeight: 1.65,
                                                 background: "#F5F5F5", border: "none", borderRadius: 12,
@@ -452,7 +471,7 @@ export default function MePage() {
                                         />
                                     ) : (
                                         <p style={{ fontSize: 15, color: person.biography ? "#555" : "#BDBDBD", lineHeight: 1.65 }}>
-                                            {person.biography || "No bio yet. Click Edit Profile to add one."}
+                                            {person.biography || t("me_no_bio")}
                                         </p>
                                     )}
                                 </div>
@@ -464,7 +483,7 @@ export default function MePage() {
                                 {/* Parents */}
                                 {parents.length > 0 && (
                                     <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>My Parents</h3>
+                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>{t("me_my_parents")}</h3>
                                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                                             {parents.map(rel => (
                                                 <RelativeCard
@@ -480,7 +499,7 @@ export default function MePage() {
                                 {/* Siblings */}
                                 {siblings.length > 0 && (
                                     <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>My Siblings</h3>
+                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>{t("me_my_siblings")}</h3>
                                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                                             {siblings.map(rel => (
                                                 <RelativeCard
@@ -508,7 +527,7 @@ export default function MePage() {
                                             transition: "background 0.15s",
                                         }}
                                     >
-                                        <TreePine size={20} /> View My Position in Family Tree
+                                        <TreePine size={20} /> {t("me_view_tree")}
                                     </button>
                                 )}
 
@@ -519,7 +538,7 @@ export default function MePage() {
                                         borderRadius: 20, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                                     }}>
                                         <p style={{ fontSize: 13, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 12 }}>
-                                            My Position
+                                            {t("me_my_position")}
                                         </p>
                                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                             {genTimeline.map(item => (
@@ -539,7 +558,7 @@ export default function MePage() {
                                                             {item.fullNames}
                                                         </p>
                                                         <p style={{ fontSize: 11, color: item.isMe ? "#4CAF50" : "#BDBDBD", marginTop: 1 }}>
-                                                            Generation {item.genNum}{item.isMe ? " · You are here ✦" : ""}
+                                                            {t("me_generation_n")} {item.genNum}{item.isMe ? t("me_you_are_here") : ""}
                                                         </p>
                                                     </div>
                                                 </div>

@@ -6,9 +6,13 @@ import { Plus, Settings, TreePine, ArrowRight, Sparkles } from "lucide-react"
 import { getFamilies, createFamily, Family } from "@/services/familyService"
 import { isAuthenticated } from "@/lib/auth"
 import AppSidebar from "@/components/AppSidebar"
+import { useT } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 export default function FamiliesPage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const [families, setFamilies] = useState<Family[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -33,7 +37,7 @@ export default function FamiliesPage() {
             const created = await createFamily(treeName.trim())
             router.push(`/family-tree/${created.id}`)
         } catch {
-            setCreateError("Failed to create. Please try again.")
+            setCreateError(t("families_failed_create"))
             setCreating(false)
         }
     }
@@ -46,7 +50,7 @@ export default function FamiliesPage() {
             <AppSidebar activeSection="tree" />
 
             {/* Main content */}
-            <main style={{ flex: 1, overflowY: "auto", background: "#F5FAF5" }}>
+            <main style={{ flex: 1, overflowY: "auto", background: "#F5FAF5", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined }}>
 
                 {/* Top bar */}
                 <div style={{
@@ -57,12 +61,12 @@ export default function FamiliesPage() {
                 }}>
                     <div>
                         <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.3 }}>
-                            Welcome to Shajarah 🌿
+                            {t("dashboard_welcome")}
                         </h2>
                         <p style={{ fontSize: 13, color: "#888", marginTop: 2 }}>
                             {loading ? "" : families.length === 0
-                                ? "You don't have a family tree yet — let's build one together."
-                                : `You have ${families.length} family tree${families.length > 1 ? "s" : ""}.`
+                                ? t("dashboard_no_tree")
+                                : t("families_tree_count").replace("{n}", String(families.length))
                             }
                         </p>
                     </div>
@@ -73,7 +77,7 @@ export default function FamiliesPage() {
                         fontSize: 13, fontWeight: 600, color: "#555",
                         cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
                     }}>
-                        <Settings size={15} color="#888" /> Settings
+                        <Settings size={15} color="#888" /> {t("dashboard_settings")}
                     </button>
                 </div>
 
@@ -124,12 +128,10 @@ export default function FamiliesPage() {
                     </div>
 
                     <h1 style={{ fontSize: 36, fontWeight: 800, color: "#1A1A2E", letterSpacing: -1, lineHeight: 1.15, maxWidth: 480, marginBottom: 14 }}>
-                        Start Your Family Legacy
+                        {t("dashboard_start_legacy")}
                     </h1>
                     <p style={{ fontSize: 15, color: "#777", lineHeight: 1.6, maxWidth: 400, marginBottom: 32 }}>
-                        Build a living, breathing record of your family history.
-                        Connect generations, preserve memories, and discover
-                        relationships across time.
+                        {t("dashboard_legacy_desc")}
                     </p>
 
                     {/* CTA */}
@@ -147,7 +149,7 @@ export default function FamiliesPage() {
                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 10px 28px rgba(76,175,80,0.45)" }}
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(76,175,80,0.4)" }}
                     >
-                        <Plus size={17} strokeWidth={2.5} /> Create My Family Tree
+                        <Plus size={17} strokeWidth={2.5} /> {t("dashboard_create_tree")}
                     </button>
 
                     {/* Explore link */}
@@ -161,7 +163,7 @@ export default function FamiliesPage() {
                                 cursor: "pointer", textDecoration: "none",
                             }}
                         >
-                            Or open {firstFamily.name} <ArrowRight size={13} />
+                            {t("dashboard_or_open").replace("{name}", firstFamily.name)} <ArrowRight size={13} />
                         </button>
                     )}
                 </section>
@@ -172,18 +174,18 @@ export default function FamiliesPage() {
                 {/* How it works */}
                 <section style={{ padding: "60px 40px", background: "#fff" }}>
                     <p style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#4CAF50", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
-                        How It Works
+                        {t("dashboard_how_it_works")}
                     </p>
                     <h2 style={{ textAlign: "center", fontSize: 26, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5, marginBottom: 36 }}>
-                        Four steps to your family legacy
+                        {t("dashboard_four_steps")}
                     </h2>
 
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, maxWidth: 900, margin: "0 auto" }}>
                         {[
-                            { n: "01", title: "Add Yourself", desc: "Start with your own profile — name, birthday, and a photo." },
-                            { n: "02", title: "Add Your Family", desc: "Connect parents, siblings, children, and extended relatives." },
-                            { n: "03", title: "Preserve Memories", desc: "Attach photos, stories, and milestones to each member." },
-                            { n: "04", title: "Invite & Share", desc: "Invite relatives to collaborate and keep the tree growing." },
+                            { n: "01", title: t("dashboard_step1_title"), desc: t("dashboard_step1_desc") },
+                            { n: "02", title: t("dashboard_step2_title"), desc: t("dashboard_step2_desc") },
+                            { n: "03", title: t("dashboard_step3_title"), desc: t("dashboard_step3_desc") },
+                            { n: "04", title: t("dashboard_step4_title"), desc: t("dashboard_step4_desc") },
                         ].map(step => (
                             <div key={step.n} style={{
                                 background: "#FAFAFA", borderRadius: 16, padding: "20px 18px 18px",
@@ -213,10 +215,9 @@ export default function FamiliesPage() {
                     {/* Feature pills */}
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, maxWidth: 700, margin: "40px auto 0" }}>
                         {[
-                            { icon: "🌳", title: "Visual Tree", desc: "Pan & zoom interactive family chart" },
-                            { icon: "👥", title: "Unlimited Members", desc: "Add as many relatives as you need" },
-                            { icon: "🤝", title: "Collaborate", desc: "Invite family to contribute together" },
-                            { icon: "🔍", title: "Relationship Finder", desc: "Discover how everyone is connected" },
+                            { icon: "🌳", title: t("dashboard_feature_tree"),      desc: t("dashboard_feature_tree_desc") },
+                            { icon: "👥", title: t("dashboard_feature_unlimited"), desc: t("dashboard_feature_unlimited_desc") },
+                            { icon: "🤝", title: t("dashboard_feature_collab"),    desc: t("dashboard_feature_collab_desc") },
                         ].map(f => (
                             <div key={f.title} style={{
                                 display: "flex", alignItems: "center", gap: 10,
@@ -286,22 +287,22 @@ export default function FamiliesPage() {
                         </div>
 
                         <h3 style={{ textAlign: "center", fontSize: 22, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>
-                            Name Your Family Tree
+                            {t("dashboard_name_tree")}
                         </h3>
                         <p style={{ textAlign: "center", fontSize: 13, color: "#888", marginBottom: 24, lineHeight: 1.5 }}>
-                            Give your tree a meaningful name — usually your family surname.
+                            {t("dashboard_name_desc")}
                         </p>
 
                         {/* Input */}
                         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 8 }}>
-                            Family Tree Name
+                            {t("dashboard_name_tree_label")}
                         </label>
                         <input
                             autoFocus
                             value={treeName}
                             onChange={e => setTreeName(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && handleCreate()}
-                            placeholder="e.g. Hassan Family, The Johnsons…"
+                            placeholder={t("dashboard_name_placeholder")}
                             style={{
                                 width: "100%", padding: "13px 16px",
                                 border: treeName ? "2px solid #4CAF50" : "2px solid #E0E0E0",
@@ -320,7 +321,7 @@ export default function FamiliesPage() {
                         }}>
                             <Sparkles size={15} color="#4CAF50" style={{ marginTop: 1, flexShrink: 0 }} />
                             <p style={{ fontSize: 12, color: "#4CAF50", lineHeight: 1.5 }}>
-                                You can always rename your tree later from Settings. Start simple — even just your surname works great!
+                                {t("dashboard_name_hint")}
                             </p>
                         </div>
 
@@ -343,7 +344,7 @@ export default function FamiliesPage() {
                                 transition: "background 0.2s, color 0.2s",
                             }}
                         >
-                            {creating ? "Creating…" : <>Continue <ArrowRight size={16} /></>}
+                            {creating ? t("dashboard_creating") : <>{t("dashboard_continue")} <ArrowRight size={16} /></>}
                         </button>
                     </div>
                 </div>

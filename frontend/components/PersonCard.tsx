@@ -132,7 +132,7 @@ export default function PersonCard({ person, x, y, selected, onClick, onDoubleCl
                     maxWidth: "100%",
                     paddingInline: 4,
                 }}>
-                    {fullName}
+                    {person.firstName || "Unknown"}
                 </span>
 
                 {/* Birth/death year */}

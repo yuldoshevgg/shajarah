@@ -15,16 +15,24 @@ import { register, login } from "@/services/authService"
 import { isAuthenticated, getPersonId } from "@/lib/auth"
 import { apiFetch } from "@/lib/apiFetch"
 import API_BASE from "@/services/api"
+import { useT, TKey } from "@/lib/i18n"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Stage = "preview" | "auth" | "connect" | "success"
 type AuthMode = "new" | "existing"
 
-const RELATIONSHIPS = [
+const RELATIONSHIP_VALUES = [
     "Father", "Mother", "Brother", "Sister", "Son", "Daughter",
     "Grandfather", "Grandmother", "Uncle", "Aunt", "Cousin", "Spouse",
-]
+] as const
+type RelValue = typeof RELATIONSHIP_VALUES[number]
+const REL_KEY_MAP: Record<RelValue, TKey> = {
+    Father: "rel_father", Mother: "rel_mother", Brother: "rel_brother",
+    Sister: "rel_sister", Son: "rel_son", Daughter: "rel_daughter",
+    Grandfather: "rel_grandfather", Grandmother: "rel_grandmother",
+    Uncle: "rel_uncle", Aunt: "rel_aunt", Cousin: "rel_cousin", Spouse: "rel_spouse",
+}
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +67,7 @@ function Confetti() {
 function DeclineModal({ familyName, onConfirm, onCancel }: {
     familyName: string; onConfirm: () => void; onCancel: () => void
 }) {
+    const { t } = useT()
     return (
         <div
             style={{
@@ -79,21 +88,20 @@ function DeclineModal({ familyName, onConfirm, onCancel }: {
             >
                 <div style={{ fontSize: 56, marginBottom: 16 }}>😔</div>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>
-                    Decline this invitation?
+                    {t("accept_decline_title")}
                 </h2>
                 <p style={{ fontSize: 14, color: "#888", lineHeight: 1.6, marginBottom: 28 }}>
-                    You'll no longer have access to the <strong>{familyName}</strong> tree.
-                    The inviter can send you a new one anytime.
+                    {t("accept_decline_desc").replace("{family}", familyName)}
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
                     <button onClick={onCancel} style={{
                         flex: 1, padding: "13px", background: "#F5F5F5", color: "#555",
                         border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer",
-                    }}>Keep Invitation</button>
+                    }}>{t("accept_keep_invitation")}</button>
                     <button onClick={onConfirm} style={{
                         flex: 1, padding: "13px", background: "#FFEBEE", color: "#C62828",
                         border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
-                    }}>Yes, Decline</button>
+                    }}>{t("invitations_yes_decline")}</button>
                 </div>
             </div>
         </div>
@@ -108,6 +116,7 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
     onAccept: () => void
     onDecline: () => void
 }) {
+    const { t } = useT()
     const familyName = preview?.family_name ?? "This Family"
     const inviterName = preview?.inviter_name ?? "Someone"
     const invitedAs = preview?.invited_as ?? "member"
@@ -132,7 +141,7 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                     {inviterName[0].toUpperCase()}
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>
-                    <span style={{ color: "#2E7D32" }}>{inviterName}</span> invited you
+                    <span style={{ color: "#2E7D32" }}>{inviterName}</span> {t("accept_invited_you")}
                 </span>
             </div>
 
@@ -163,18 +172,18 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                         {familyName}
                     </h1>
                     <p style={{ fontSize: 15, color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>
-                        You've been invited as <strong style={{ color: "#fff" }}>{invitedAs}</strong>
+                        {t("accept_invited_as_member")} <strong style={{ color: "#fff" }}>{invitedAs}</strong>
                     </p>
                     <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 24, position: "relative", zIndex: 1 }}>
                         {memberCount > 0 && (
                             <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "6px 14px" }}>
                                 <Users size={13} color="rgba(255,255,255,0.9)" />
-                                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{memberCount} Members</span>
+                                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{memberCount} {t("invitations_members")}</span>
                             </div>
                         )}
                         <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "6px 14px" }}>
                             <GitBranch size={13} color="rgba(255,255,255,0.9)" />
-                            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>Family Tree</span>
+                            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{t("invitations_family_tree")}</span>
                         </div>
                     </div>
                 </div>
@@ -185,10 +194,10 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                     <div style={{ background: "#F8FFF8", borderRadius: 16, padding: "18px 20px", border: "1px solid #DCF0DC", marginBottom: 28 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                             <Sparkles size={15} color="#4CAF50" />
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "#2E7D32" }}>What you'll get access to</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#2E7D32" }}>{t("accept_what_you_get_access")}</p>
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                            {["🌳 Interactive family tree", "📸 Family memories & photos", "🔔 Birthday reminders", "🧬 Relationship finder"].map(item => (
+                            {[t("invitations_feature_tree"), t("invitations_feature_memories"), t("invitations_feature_reminders")].map(item => (
                                 <div key={item} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                     <Check size={13} color="#4CAF50" strokeWidth={2.5} style={{ flexShrink: 0 }} />
                                     <span style={{ fontSize: 12.5, color: "#555" }}>{item}</span>
@@ -201,7 +210,7 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 24, justifyContent: "center" }}>
                         <Shield size={13} color="#9E9E9E" />
                         <p style={{ fontSize: 12, color: "#9E9E9E" }}>
-                            {preview ? "Invitation is active" : "Join as a member"}
+                            {preview ? t("accept_invitation_active") : t("accept_join_as_member")}
                         </p>
                     </div>
 
@@ -220,7 +229,7 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                             onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(76,175,80,0.5)" }}
                             onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(76,175,80,0.4)" }}
                         >
-                            <Heart size={18} fill="white" strokeWidth={0} /> Accept Invitation <ArrowRight size={18} />
+                            <Heart size={18} fill="white" strokeWidth={0} /> {t("accept_accept_invitation")} <ArrowRight size={18} />
                         </button>
                         {preview && (
                             <button
@@ -235,7 +244,7 @@ function PreviewStage({ preview, familyId, onAccept, onDecline }: {
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#EF5350"; e.currentTarget.style.color = "#EF5350" }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#EBEBEB"; e.currentTarget.style.color = "#BDBDBD" }}
                             >
-                                <X size={15} /> Decline Invitation
+                                <X size={15} /> {t("accept_decline_invitation")}
                             </button>
                         )}
                     </div>
@@ -290,6 +299,7 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
         }
     }
 
+    const { t } = useT()
     const familyName = preview?.family_name ?? "the family"
 
     return (
@@ -304,7 +314,7 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
             }}>
                 <span style={{ fontSize: 22 }}>👨‍👩‍👧‍👦</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>
-                    Joining <span style={{ color: "#2E7D32" }}>{familyName}</span>
+                    {t("accept_joining")} <span style={{ color: "#2E7D32" }}>{familyName}</span>
                 </span>
             </div>
 
@@ -314,9 +324,9 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                     <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", border: "2px solid rgba(255,255,255,0.3)" }}>
                         <TreePine size={28} color="#fff" strokeWidth={1.8} />
                     </div>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.3 }}>One last step</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.3 }}>{t("accept_one_last_step")}</h2>
                     <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }}>
-                        {mode === "new" ? "Create an account to join your family tree" : "Sign in to accept your invitation"}
+                        {mode === "new" ? t("accept_create_to_join") : t("accept_sign_in_to_accept")}
                     </p>
                 </div>
 
@@ -333,7 +343,7 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                                 boxShadow: mode === m ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
                                 transition: "all 0.2s", whiteSpace: "nowrap",
                             }}>
-                                {m === "new" ? "New to Shajarah" : "I have an account"}
+                                {m === "new" ? t("accept_new_to_shajarah") : t("accept_have_account")}
                             </button>
                         ))}
                     </div>
@@ -344,8 +354,8 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                             <>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                                     {[
-                                        { ph: "First name", val: firstName, set: setFirstName },
-                                        { ph: "Last name", val: lastName, set: setLastName },
+                                        { ph: t("register_first_placeholder"), val: firstName, set: setFirstName },
+                                        { ph: t("register_last_placeholder"), val: lastName, set: setLastName },
                                     ].map(f => (
                                         <div key={f.ph} style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7F5F0", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #EBEBEB" }}>
                                             <User size={16} color="#9E9E9E" />
@@ -364,7 +374,7 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                                             display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                                             transition: "all 0.15s",
                                         }}>
-                                            {g === "male" ? "♂ Male" : "♀ Female"}
+                                            {g === "male" ? `♂ ${t("male")}` : `♀ ${t("female")}`}
                                         </button>
                                     ))}
                                 </div>
@@ -375,13 +385,13 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                                 style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 15, color: "#1A1A2E", fontWeight: 500 }} />
                             {preview?.invited_email && (
-                                <div style={{ background: "#E8F5E9", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: "#2E7D32" }}>PRE-FILLED</div>
+                                <div style={{ background: "#E8F5E9", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: "#2E7D32" }}>{t("accept_prefilled")}</div>
                             )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#F7F5F0", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #EBEBEB" }}>
                             <Lock size={17} color="#9E9E9E" />
                             <input type={showPass ? "text" : "password"}
-                                placeholder={mode === "new" ? "Create a password" : "Your password"}
+                                placeholder={mode === "new" ? t("accept_create_password") : t("accept_your_password")}
                                 value={password} onChange={e => setPass(e.target.value)}
                                 onKeyDown={e => e.key === "Enter" && handleSubmit()}
                                 style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 15, color: "#1A1A2E" }} />
@@ -402,9 +412,9 @@ function AuthStage({ preview, familyId, token, onSuccess }: {
                         boxShadow: loading ? "none" : "0 8px 24px rgba(76,175,80,0.4)", transition: "all 0.2s",
                     }}>
                         {loading ? (
-                            <><div style={{ width: 18, height: 18, borderRadius: "50%", border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Joining family…</>
+                            <><div style={{ width: 18, height: 18, borderRadius: "50%", border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> {t("accept_joining_family")}</>
                         ) : (
-                            <>{mode === "new" ? "Create Account & Join" : "Sign In & Accept"}<ArrowRight size={18} /></>
+                            <>{mode === "new" ? t("accept_create_and_join") : t("accept_sign_in_accept")}<ArrowRight size={18} /></>
                         )}
                     </button>
                 </div>
@@ -424,6 +434,7 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
     const [selected, setSelected] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const { t } = useT()
 
     const handleConnect = async () => {
         if (!selected || !ownerPersonId) { onDone(); return }
@@ -464,7 +475,7 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
             }}>
                 <span style={{ fontSize: 22 }}>🌳</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>
-                    Connect to <span style={{ color: "#2E7D32" }}>{familyName}</span>
+                    {t("accept_connect_to")} <span style={{ color: "#2E7D32" }}>{familyName}</span>
                 </span>
             </div>
 
@@ -473,18 +484,18 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
                     <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", border: "2px solid rgba(255,255,255,0.3)" }}>
                         <Link2 size={28} color="#fff" strokeWidth={1.8} />
                     </div>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.3 }}>One more thing</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.3 }}>{t("accept_one_more_thing")}</h2>
                     <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }}>
-                        How are you related to <strong style={{ color: "#fff" }}>{ownerName || "the family owner"}</strong>?
+                        {t("accept_how_related").replace("{name}", ownerName || "the family owner")}
                     </p>
                 </div>
 
                 <div style={{ padding: "28px 32px 32px" }}>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 14 }}>
-                        Select your relationship
+                        {t("accept_select_rel")}
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
-                        {RELATIONSHIPS.map(rel => (
+                        {RELATIONSHIP_VALUES.map(rel => (
                             <button
                                 key={rel}
                                 onClick={() => setSelected(rel)}
@@ -497,7 +508,7 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
                                     cursor: "pointer", transition: "all 0.15s",
                                 }}
                             >
-                                {rel}
+                                {t(REL_KEY_MAP[rel])}
                             </button>
                         ))}
                     </div>
@@ -517,15 +528,15 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
                         }}
                     >
                         {loading
-                            ? <><div style={{ width: 18, height: 18, borderRadius: "50%", border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Connecting…</>
-                            : <>{selected ? "Connect & Continue" : "Skip for now"} <ArrowRight size={18} /></>
+                            ? <><div style={{ width: 18, height: 18, borderRadius: "50%", border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> {t("accept_connecting")}</>
+                            : <>{selected ? t("accept_connect_continue") : t("accept_skip_now")} <ArrowRight size={18} /></>
                         }
                     </button>
                     <button
                         onClick={onDone}
                         style={{ width: "100%", padding: "12px", background: "transparent", border: "none", color: "#BDBDBD", fontSize: 13, cursor: "pointer" }}
                     >
-                        I'll do this later
+                        {t("accept_do_later")}
                     </button>
                 </div>
             </div>
@@ -538,6 +549,7 @@ function ConnectStage({ ownerName, ownerPersonId, familyName, onDone }: {
 function SuccessStage({ familyName, invitedAs, onGoToTree }: {
     familyName: string; invitedAs: string; onGoToTree: () => void
 }) {
+    const { t } = useT()
     return (
         <div style={{ width: "100%", maxWidth: 520, textAlign: "center", animation: "fadeUp 0.5s ease both" }}>
             <div style={{
@@ -552,20 +564,19 @@ function SuccessStage({ familyName, invitedAs, onGoToTree }: {
             </div>
 
             <h1 style={{ fontSize: 36, fontWeight: 900, color: "#fff", letterSpacing: -0.8, marginBottom: 12, lineHeight: 1.1, textShadow: "0 2px 16px rgba(0,0,0,0.15)" }}>
-                You're in the family! 🎉
+                {t("accept_in_family")}
             </h1>
             <p style={{ fontSize: 17, color: "rgba(255,255,255,0.88)", lineHeight: 1.6, marginBottom: 40, maxWidth: 400, margin: "0 auto 40px" }}>
-                Welcome to <strong style={{ color: "#fff" }}>{familyName}</strong>!
-                You're now connected as <strong style={{ color: "#fff" }}>{invitedAs}</strong>.
+                {t("accept_welcome_to").replace("{family}", familyName).replace("{role}", invitedAs)}
             </p>
 
             {/* What's next */}
             <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "20px 24px", marginBottom: 32, textAlign: "left", border: "1px solid rgba(255,255,255,0.2)" }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>What's next?</p>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>{t("accept_whats_next")}</p>
                 {[
-                    { icon: "👤", text: "Complete your profile to appear on the tree" },
-                    { icon: "🌳", text: "Explore the interactive family tree" },
-                    { icon: "📸", text: "Add memories and photos" },
+                    { icon: "👤", text: t("accept_complete_profile") },
+                    { icon: "🌳", text: t("accept_explore_tree") },
+                    { icon: "📸", text: t("accept_add_memories") },
                 ].map((item, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: i < 2 ? 12 : 0 }}>
                         <span style={{ fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
@@ -587,7 +598,7 @@ function SuccessStage({ familyName, invitedAs, onGoToTree }: {
                 onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
                 onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
             >
-                <TreePine size={20} color="#4CAF50" /> Open My Family Tree <ArrowRight size={18} />
+                <TreePine size={20} color="#4CAF50" /> {t("accept_open_my_tree")} <ArrowRight size={18} />
             </button>
         </div>
     )
@@ -598,6 +609,7 @@ function SuccessStage({ familyName, invitedAs, onGoToTree }: {
 function AcceptContent() {
     const router = useRouter()
     const params = useSearchParams()
+    const { t } = useT()
     const token = params.get("token") ?? ""
     const familyId = params.get("family") ?? ""
 
@@ -613,7 +625,7 @@ function AcceptContent() {
 
     useEffect(() => {
         if (!token && !familyId) {
-            setError("Invalid invitation link.")
+            setError(t("accept_invalid_link"))
             setLoading(false)
             return
         }
@@ -684,10 +696,10 @@ function AcceptContent() {
             <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: bgColors.preview, padding: 24 }}>
                 <div style={{ background: "#fff", borderRadius: 24, padding: "48px 44px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 24px 72px rgba(0,0,0,0.12)" }}>
                     <div style={{ fontSize: 56, marginBottom: 16 }}>🔗</div>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>Invitation Error</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>{t("accept_error_title")}</h2>
                     <p style={{ fontSize: 15, color: "#888", marginBottom: 28 }}>{error}</p>
                     <button onClick={() => router.push("/families")} style={{ padding: "14px 32px", background: "linear-gradient(135deg, #4CAF50, #2E7D32)", color: "#fff", border: "none", borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                        Go to Families
+                        {t("accept_go_to_families")}
                     </button>
                 </div>
             </div>
@@ -729,12 +741,12 @@ function AcceptContent() {
                 {declined ? (
                     <div style={{ textAlign: "center", maxWidth: 400, animation: "fadeUp 0.4s ease both" }}>
                         <div style={{ fontSize: 72, marginBottom: 20 }}>🙏</div>
-                        <h2 style={{ fontSize: 26, fontWeight: 800, color: "#1A1A2E", marginBottom: 12 }}>Invitation Declined</h2>
+                        <h2 style={{ fontSize: 26, fontWeight: 800, color: "#1A1A2E", marginBottom: 12 }}>{t("accept_declined_title")}</h2>
                         <p style={{ fontSize: 15, color: "#888", lineHeight: 1.6, marginBottom: 28 }}>
-                            You've declined the invitation to join <strong>{preview?.family_name}</strong>.
+                            {t("accept_declined_desc").replace("{family}", preview?.family_name ?? "")}
                         </p>
                         <button onClick={() => router.push("/families")} style={{ padding: "14px 32px", background: "linear-gradient(135deg, #4CAF50, #2E7D32)", color: "#fff", border: "none", borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(76,175,80,0.35)" }}>
-                            Go to Shajarah
+                            {t("accept_go_to_shajarah")}
                         </button>
                     </div>
                 ) : stage === "preview" ? (

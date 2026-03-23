@@ -8,6 +8,8 @@ import { getFamilies, Family } from "@/services/familyService"
 import { apiFetch } from "@/lib/apiFetch"
 import API_BASE from "@/services/api"
 import AppSidebar from "@/components/AppSidebar"
+import { useT } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 interface FamilyStory {
     id: string
@@ -29,6 +31,8 @@ const CARD_COLORS = [
 
 export default function MemoriesPage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const [family, setFamily] = useState<Family | null>(null)
     const [stories, setStories] = useState<FamilyStory[]>([])
     const [loading, setLoading] = useState(true)
@@ -65,7 +69,7 @@ export default function MemoriesPage() {
     const handleSave = async () => {
         if (!title.trim() || !content.trim()) return
         const personId = getPersonId()
-        if (!personId) { setSaveError("No person profile linked to your account"); return }
+        if (!personId) { setSaveError(t("dashboard_no_person")); return }
         setSaving(true)
         setSaveError("")
         try {
@@ -89,7 +93,7 @@ export default function MemoriesPage() {
             setContent("")
             setShowAddPanel(false)
         } catch {
-            setSaveError("Failed to save memory")
+            setSaveError(t("memories_save"))
         } finally {
             setSaving(false)
         }
@@ -107,62 +111,64 @@ export default function MemoriesPage() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 {/* Header */}
                 <header style={{
-                    padding: "20px 32px", background: "#FFFFFF",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: isMobile ? "14px 16px" : "20px 32px", background: "#FFFFFF",
+                    display: "flex", flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "stretch" : "center",
+                    justifyContent: "space-between", gap: isMobile ? 10 : 0,
                     boxShadow: "0 2px 12px rgba(0,0,0,0.05)", flexShrink: 0, zIndex: 10,
                 }}>
                     <div>
-                        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>Memories</h1>
-                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>Stories that bind your family together</p>
+                        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>{t("memories_title")}</h1>
+                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>{t("memories_subtitle")}</p>
                     </div>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", borderRadius: 10, padding: "9px 16px", border: "1px solid #EBEBEB" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", borderRadius: 10, padding: "9px 14px", border: "1px solid #EBEBEB", flex: isMobile ? 1 : undefined }}>
                             <Search size={15} color="#9E9E9E" />
                             <input
-                                placeholder="Search memories..."
+                                placeholder={t("memories_search")}
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                style={{ background: "none", border: "none", outline: "none", fontSize: 14, color: "#1A1A2E", width: 180 }}
+                                style={{ background: "none", border: "none", outline: "none", fontSize: 14, color: "#1A1A2E", width: isMobile ? "100%" : 180, minWidth: 0 }}
                             />
                         </div>
                         <button
                             onClick={() => setShowAddPanel(s => !s)}
                             style={{
                                 display: "flex", alignItems: "center", gap: 8,
-                                padding: "10px 20px",
+                                padding: isMobile ? "10px 14px" : "10px 20px",
                                 background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
                                 color: "white", border: "none", borderRadius: 10,
                                 fontSize: 14, fontWeight: 700, cursor: "pointer",
-                                boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
+                                boxShadow: "0 4px 14px rgba(76,175,80,0.35)", flexShrink: 0,
                             }}
                         >
-                            <Plus size={16} strokeWidth={2.5} /> Add Memory
+                            <Plus size={16} strokeWidth={2.5} />{!isMobile && ` ${t("memories_add")}`}
                         </button>
                     </div>
                 </header>
 
                 {/* Body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "#F7F5F0" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px" : "28px 32px", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined, background: "#F7F5F0" }}>
                     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
                         {/* Stats */}
-                        <div style={{ display: "flex", gap: 16, marginBottom: 28 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 28 }}>
                             {[
-                                { label: "Total Memories",  value: stories.length,         emoji: "📸", color: "#E3F2FD" },
-                                { label: "Family Members",  value: memberCount,             emoji: "👥", color: "#E8F5E9" },
-                                { label: "Years Covered",   value: yearsSpan > 0 ? `${yearsSpan}+` : "—", emoji: "🌿", color: "#FFF8E1" },
-                                { label: "Generations",     value: 3,                       emoji: "🌳", color: "#F3E5F5" },
+                                { label: t("memories_total"),          value: stories.length,         emoji: "📸", color: "#E3F2FD" },
+                                { label: t("memories_family_members"), value: memberCount,             emoji: "👥", color: "#E8F5E9" },
+                                { label: t("memories_years_covered"),  value: yearsSpan > 0 ? `${yearsSpan}+` : "—", emoji: "🌿", color: "#FFF8E1" },
+                                { label: t("memories_generations"),    value: 3,                       emoji: "🌳", color: "#F3E5F5" },
                             ].map(s => (
                                 <div key={s.label} style={{
-                                    flex: 1, background: "#FFFFFF", borderRadius: 16, padding: "20px 22px",
-                                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 14,
+                                    background: "#FFFFFF", borderRadius: 16, padding: isMobile ? "14px 16px" : "20px 22px",
+                                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: isMobile ? 10 : 14,
                                 }}>
-                                    <div style={{ width: 48, height: 48, borderRadius: 14, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+                                    <div style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, borderRadius: 14, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 20 : 24, flexShrink: 0 }}>
                                         {s.emoji}
                                     </div>
-                                    <div>
-                                        <p style={{ fontSize: 26, fontWeight: 800, color: "#1A1A2E", lineHeight: 1 }}>{s.value}</p>
-                                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 4 }}>{s.label}</p>
+                                    <div style={{ minWidth: 0 }}>
+                                        <p style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: "#1A1A2E", lineHeight: 1 }}>{s.value}</p>
+                                        <p style={{ fontSize: 11, color: "#9E9E9E", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</p>
                                     </div>
                                 </div>
                             ))}
@@ -184,20 +190,20 @@ export default function MemoriesPage() {
                                 >
                                     <X size={16} color="#fff" />
                                 </button>
-                                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 20 }}>📝 Add a New Memory</h3>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 20 }}>{t("memories_add_title")}</h3>
+                                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                                     <input
-                                        placeholder="Memory title..."
+                                        placeholder={t("memories_title_placeholder")}
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
                                         style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, padding: "12px 16px", fontSize: 15, color: "#fff", outline: "none" }}
                                     />
                                     <input
-                                        placeholder="Date (e.g. July 15, 2023)"
+                                        placeholder={t("memories_date_placeholder")}
                                         style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, padding: "12px 16px", fontSize: 15, color: "#fff", outline: "none" }}
                                     />
                                     <textarea
-                                        placeholder="Tell the story behind this memory..."
+                                        placeholder={t("memories_story_placeholder")}
                                         rows={3}
                                         value={content}
                                         onChange={e => setContent(e.target.value)}
@@ -211,14 +217,14 @@ export default function MemoriesPage() {
                                         onClick={() => photoInputRef.current?.click()}
                                         style={{ flex: 1, padding: 12, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                                     >
-                                        <Camera size={16} /> Upload Photo
+                                        <Camera size={16} /> {t("memories_upload_photo")}
                                     </button>
                                     <button
                                         onClick={handleSave}
                                         disabled={!title.trim() || !content.trim() || saving}
                                         style={{ flex: 1, padding: 12, background: "#FFFFFF", border: "none", borderRadius: 12, color: "#2E7D32", fontSize: 14, fontWeight: 800, cursor: title.trim() && content.trim() ? "pointer" : "not-allowed" }}
                                     >
-                                        {saving ? "Saving…" : "Save Memory"}
+                                        {saving ? t("memories_saving") : t("memories_save")}
                                     </button>
                                 </div>
                             </div>
@@ -227,13 +233,13 @@ export default function MemoriesPage() {
                         {/* Grid */}
                         <div style={{ marginBottom: 16 }}>
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1A1A2E", marginBottom: 16 }}>
-                                {searchQuery ? `Results for "${searchQuery}"` : "All Memories"}
+                                {searchQuery ? `${t("memories_results_for")} "${searchQuery}"` : t("memories_all")}
                                 <span style={{ fontSize: 14, color: "#9E9E9E", fontWeight: 500, marginLeft: 8 }}>({filtered.length})</span>
                             </h2>
                         </div>
 
                         {loading ? (
-                            <p style={{ textAlign: "center", color: "#9E9E9E", marginTop: 40 }}>Loading memories…</p>
+                            <p style={{ textAlign: "center", color: "#9E9E9E", marginTop: 40 }}>{t("memories_loading")}</p>
                         ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
                                 {filtered.map((story, idx) => (
@@ -286,9 +292,9 @@ export default function MemoriesPage() {
                                     <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                         <Plus size={26} color="#4CAF50" />
                                     </div>
-                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#555" }}>Create a Memory</p>
+                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#555" }}>{t("memories_create")}</p>
                                     <p style={{ fontSize: 13, color: "#9E9E9E", textAlign: "center", lineHeight: 1.5 }}>
-                                        Capture a special moment for your family to treasure forever
+                                        {t("memories_empty_desc")}
                                     </p>
                                 </div>
                             </div>
@@ -305,7 +311,7 @@ export default function MemoriesPage() {
                 >
                     <div
                         onClick={e => e.stopPropagation()}
-                        style={{ background: "#fff", borderRadius: 24, overflow: "hidden", width: 640, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)" }}
+                        style={{ background: "#fff", borderRadius: isMobile ? 20 : 24, overflow: "hidden", width: isMobile ? "calc(100vw - 32px)" : 640, maxHeight: isMobile ? "90vh" : "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)" }}
                     >
                         <div style={{ height: 200, background: CARD_COLORS[stories.indexOf(selectedStory) % CARD_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                             <span style={{ fontSize: 72, opacity: 0.4 }}>📖</span>
@@ -326,8 +332,8 @@ export default function MemoriesPage() {
                             </div>
                             <p style={{ fontSize: 15, color: "#555", lineHeight: 1.7, marginBottom: 24 }}>{selectedStory.content}</p>
                             <div>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>Written by</p>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F0F8F1", borderRadius: 10, padding: "8px 14px", display: "inline-flex" as "flex" }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>{t("memories_written_by")}</p>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#F0F8F1", borderRadius: 10, padding: "8px 14px" }}>
                                     <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#4CAF50", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 12 }}>
                                         {selectedStory.first_name?.[0] ?? "?"}
                                     </div>

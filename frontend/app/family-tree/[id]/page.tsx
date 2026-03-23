@@ -15,6 +15,8 @@ import { getPersonId } from "../../../lib/auth"
 import FamilyTree from "../../../components/FamilyTree"
 import { PersonCardData } from "../../../components/PersonCard"
 import { computeKinship } from "../../../lib/kinship"
+import { useT } from "../../../lib/i18n"
+import { useBreakpoint } from "../../../lib/useBreakpoint"
 
 interface Props {
     params: Promise<{ id: string }>
@@ -74,6 +76,7 @@ function AddRelativePanel({
     onClose: () => void
     onAdded: (name: string) => void
 }) {
+    const { t } = useT()
     const [mode,       setMode]       = useState<"new" | "existing">("new")
     const [relType,    setRelType]    = useState("")
     // new-person fields
@@ -88,6 +91,19 @@ function AddRelativePanel({
     const [error,      setError]      = useState("")
     const [done,       setDone]       = useState(false)
     const [addedName,  setAddedName]  = useState("")
+
+    const relLabelMap: Record<string, string> = {
+        parent:  t("tree_rel_parent"),
+        child:   t("tree_rel_child"),
+        sibling: t("tree_rel_sibling_label"),
+        spouse:  t("rel_spouse"),
+    }
+    const relDescMap: Record<string, string> = {
+        parent:  t("tree_rel_parent_desc"),
+        child:   t("tree_rel_child_desc"),
+        sibling: t("tree_rel_sibling_desc"),
+        spouse:  t("tree_rel_spouse_desc"),
+    }
 
     const candidates = existingPersons.filter(p => p.id !== anchor.id)
     const filtered = personSearch.trim()
@@ -180,9 +196,9 @@ function AddRelativePanel({
                         <UserPlus size={18} color="#fff" />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1A1A2E" }}>Add Relative</h2>
+                        <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1A1A2E" }}>{t("tree_add_relative")}</h2>
                         <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>
-                            Connected to <strong style={{ color: "#4CAF50" }}>{anchor.first_name}</strong>
+                            {t("tree_connected_to").replace("{name}", anchor.first_name)}
                         </p>
                     </div>
                     <button
@@ -233,12 +249,12 @@ function AddRelativePanel({
                         marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
                         fontSize: 11, color: "#4CAF50", fontWeight: 700,
                     }}>
-                        Anchor <ChevronRight size={12} />
+                        {t("tree_anchor")} <ChevronRight size={12} />
                     </div>
                 </div>
 
                 {/* Scrollable body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+                <div className="page-scroll" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
                     {done ? (
                         <div style={{
                             display: "flex", flexDirection: "column", alignItems: "center",
@@ -255,12 +271,14 @@ function AddRelativePanel({
                             </div>
                             <div>
                                 <p style={{ fontSize: 20, fontWeight: 900, color: "#1A1A2E", marginBottom: 6 }}>
-                                    {addedName} added!
+                                    {t("tree_added_name").replace("{name}", addedName)}
                                 </p>
                                 <p style={{ fontSize: 13, color: "#888", lineHeight: 1.55 }}>
-                                    {addedName} has been added as {anchor.first_name}&apos;s{" "}
-                                    {RELATIONSHIP_TYPES.find(r => r.id === relType)?.label.toLowerCase() ?? "relative"}.
-                                    {email && " An invitation has been sent."}
+                                    {t("tree_added_desc")
+                                        .replace("{name}", addedName)
+                                        .replace("{rel}", (relLabelMap[relType] ?? "").toLowerCase())
+                                        .replace("{anchor}", anchor.first_name)}
+                                    {email && t("tree_invite_note")}
                                 </p>
                             </div>
                         </div>
@@ -278,7 +296,7 @@ function AddRelativePanel({
                                         boxShadow: mode === m ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
                                         transition: "all 0.2s",
                                     }}>
-                                        {m === "new" ? "➕ New Person" : "🔍 Existing Person"}
+                                        {m === "new" ? t("tree_new_person_btn") : t("tree_existing_person_btn")}
                                     </button>
                                 ))}
                             </div>
@@ -289,7 +307,7 @@ function AddRelativePanel({
                                     fontSize: 11.5, fontWeight: 700, color: "#BDBDBD",
                                     letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 12,
                                 }}>
-                                    ① Relationship to {anchor.first_name}
+                                    {t("tree_rel_to").replace("{name}", anchor.first_name)}
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
                                     {RELATIONSHIP_TYPES.map(rt => {
@@ -321,8 +339,8 @@ function AddRelativePanel({
                                                 )}
                                                 <span style={{ fontSize: 24 }}>{rt.emoji}</span>
                                                 <div>
-                                                    <p style={{ fontSize: 13, fontWeight: 700, color: sel ? "#2E7D32" : "#1A1A2E" }}>{rt.label}</p>
-                                                    <p style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2, lineHeight: 1.4 }}>{rt.description}</p>
+                                                    <p style={{ fontSize: 13, fontWeight: 700, color: sel ? "#2E7D32" : "#1A1A2E" }}>{relLabelMap[rt.id]}</p>
+                                                    <p style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2, lineHeight: 1.4 }}>{relDescMap[rt.id]}</p>
                                                 </div>
                                             </button>
                                         )
@@ -336,7 +354,7 @@ function AddRelativePanel({
                                     fontSize: 11.5, fontWeight: 700, color: "#BDBDBD",
                                     letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 12,
                                 }}>
-                                    ② Their details
+                                    {t("tree_their_details")}
                                 </p>
 
                                 {mode === "existing" ? (
@@ -346,7 +364,7 @@ function AddRelativePanel({
                                             type="text"
                                             value={personSearch}
                                             onChange={e => setPersonSearch(e.target.value)}
-                                            placeholder="Search by name…"
+                                            placeholder={t("tree_search_member")}
                                             style={{
                                                 width: "100%", padding: "11px 13px",
                                                 background: "#F7F5F0", border: "1.5px solid #EBEBEB",
@@ -364,7 +382,7 @@ function AddRelativePanel({
                                         }}>
                                             {filtered.length === 0 ? (
                                                 <p style={{ fontSize: 13, color: "#AAAAAA", textAlign: "center", padding: "20px 0" }}>
-                                                    No matching people
+                                                    {t("tree_no_matching")}
                                                 </p>
                                             ) : filtered.map(p => {
                                                 const sel = selectedId === p.id
@@ -411,8 +429,8 @@ function AddRelativePanel({
                                         {/* Name */}
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                                             {[
-                                                { label: "First Name", val: firstName, set: setFirstName, ph: "e.g. Layla" },
-                                                { label: "Last Name",  val: lastName,  set: setLastName,  ph: "e.g. Hassan" },
+                                                { label: t("me_first_name"), val: firstName, set: setFirstName, ph: "e.g. Layla" },
+                                                { label: t("me_last_name"),  val: lastName,  set: setLastName,  ph: "e.g. Hassan" },
                                             ].map(f => (
                                                 <div key={f.label}>
                                                     <label style={{
@@ -447,12 +465,12 @@ function AddRelativePanel({
                                                 letterSpacing: 0.5, textTransform: "uppercase",
                                                 display: "block", marginBottom: 6,
                                             }}>
-                                                Gender <span style={{ color: "#EF5350" }}>*</span>
+                                                {t("tree_gender_label")} <span style={{ color: "#EF5350" }}>*</span>
                                             </label>
                                             <div style={{ display: "flex", gap: 8 }}>
                                                 {[
-                                                    { val: "male",   label: "Male",   emoji: "👨" },
-                                                    { val: "female", label: "Female", emoji: "👩" },
+                                                    { val: "male",   label: t("male"),   emoji: "👨" },
+                                                    { val: "female", label: t("female"), emoji: "👩" },
                                                 ].map(opt => (
                                                     <button
                                                         key={opt.val}
@@ -484,7 +502,7 @@ function AddRelativePanel({
                                                     Email
                                                 </label>
                                                 <span style={{ fontSize: 10.5, color: "#BDBDBD", background: "#F5F5F5", borderRadius: 5, padding: "2px 7px" }}>
-                                                    optional — sends an invite
+                                                    {t("tree_email_optional")}
                                                 </span>
                                             </div>
                                             <div style={{
@@ -503,7 +521,7 @@ function AddRelativePanel({
                                             </div>
                                             {email && (
                                                 <p style={{ fontSize: 11, color: "#4CAF50", fontWeight: 600, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
-                                                    <Send size={10} /> They&apos;ll receive an invitation email
+                                                    <Send size={10} /> {t("tree_invite_email_note")}
                                                 </p>
                                             )}
                                         </div>
@@ -535,7 +553,7 @@ function AddRelativePanel({
                                 fontSize: 14, fontWeight: 600, cursor: "pointer",
                             }}
                         >
-                            Cancel
+                            {t("cancel")}
                         </button>
                         <button
                             onClick={handleSubmit}
@@ -560,12 +578,12 @@ function AddRelativePanel({
                                         borderTopColor: "#fff",
                                         animation: "spin 0.7s linear infinite",
                                     }} />
-                                    Adding…
+                                    {t("tree_adding")}
                                 </>
                             ) : mode === "existing" ? (
-                                <><UserPlus size={15} /> Add {selectedId ? (existingPersons.find(p => p.id === selectedId)?.first_name ?? "Person") : "Person"}</>
+                                <><UserPlus size={15} /> {t("tree_add_btn").replace("{name}", selectedId ? (existingPersons.find(p => p.id === selectedId)?.first_name ?? "…") : "…")}</>
                             ) : (
-                                <><UserPlus size={15} /> Add {firstName || "Person"}</>
+                                <><UserPlus size={15} /> {t("tree_add_btn").replace("{name}", firstName || "…")}</>
                             )}
                         </button>
                     </div>
@@ -592,6 +610,7 @@ function NodeContextMenu({
     onAddRelative: () => void
     onClose: () => void
 }) {
+    const { t } = useT()
     const fullName = [person.first_name, person.last_name].filter(Boolean).join(" ")
     return (
         <>
@@ -647,7 +666,7 @@ function NodeContextMenu({
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}
                     >
                         <User size={15} color="#555" />
-                        {person.id === selfId ? "My Profile" : "View Profile"}
+                        {person.id === selfId ? t("nav_my_profile") : t("view_profile")}
                         <ChevronRight size={13} color="#CCCCCC" style={{ marginLeft: "auto" }} />
                     </button>
                     <button
@@ -663,7 +682,7 @@ function NodeContextMenu({
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}
                     >
                         <UserPlus size={15} color="#4CAF50" />
-                        Add Relative
+                        {t("tree_add_relative_ctx")}
                         <ChevronRight size={13} color="#CCCCCC" style={{ marginLeft: "auto" }} />
                     </button>
                 </div>
@@ -676,6 +695,8 @@ function NodeContextMenu({
 
 export default function FamilyTreePage({ params }: Props) {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const { id: familyId } = use(params)
 
     const [tree, setTree] = useState<GenealogyTree>({ persons: [], parent_child: [], spouses: [], siblings: [] })
@@ -770,7 +791,7 @@ export default function FamilyTreePage({ params }: Props) {
             {/* Toast */}
             {toast && (
                 <div style={{
-                    position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+                    position: "fixed", bottom: isMobile ? 80 : 28, left: "50%", transform: "translateX(-50%)",
                     background: "#1A1A2E", color: "#fff", borderRadius: 40, padding: "11px 22px",
                     fontSize: 13.5, fontWeight: 600, boxShadow: "0 8px 28px rgba(0,0,0,0.22)",
                     zIndex: 9999, whiteSpace: "nowrap", animation: "toastFadeUp 0.22s ease both",
@@ -782,79 +803,126 @@ export default function FamilyTreePage({ params }: Props) {
             {/* ── Header ── */}
             <header
                 className="flex items-center justify-between flex-shrink-0"
-                style={{ padding: "20px 32px", background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", zIndex: 10 }}
+                style={{ padding: isMobile ? "12px 16px" : "20px 32px", background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", zIndex: 10 }}
             >
-                <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5, lineHeight: 1.2 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                    <h1 style={{ fontSize: isMobile ? 17 : 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {familyTitle}
                     </h1>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <Users size={13} color="#888" />
-                            <span style={{ fontSize: 13, color: "#888" }}>{memberCount} members</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16, marginTop: 2 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Users size={12} color="#888" />
+                            <span style={{ fontSize: 12, color: "#888" }}>{t("tree_members_count").replace("{n}", String(memberCount))}</span>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <GitBranch size={13} color="#888" />
-                            <span style={{ fontSize: 13, color: "#888" }}>{generationCount || "—"} generations</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <GitBranch size={12} color="#888" />
+                            <span style={{ fontSize: 12, color: "#888" }}>{t("tree_generations_count").replace("{n}", String(generationCount || "—"))}</span>
                         </div>
                     </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    {searchOpen ? (
-                        <input
-                            autoFocus
-                            style={{
-                                padding: "10px 14px", background: "#F5F5F5", border: "none",
-                                borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#333",
-                                outline: "none", width: 180,
-                            }}
-                            placeholder="Search member…"
-                            value={search}
-                            onChange={e => handleSearch(e.target.value)}
-                            onBlur={() => { if (!search) setSearchOpen(false) }}
-                        />
+                <div style={{ display: "flex", gap: isMobile ? 8 : 10, alignItems: "center", flexShrink: 0 }}>
+                    {isMobile ? (
+                        /* Mobile: icon-only search + add button */
+                        <>
+                            <button
+                                onClick={() => setSearchOpen(v => !v)}
+                                style={{
+                                    width: 36, height: 36, borderRadius: 10, background: "#F5F5F5",
+                                    border: "none", cursor: "pointer",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                }}
+                            >
+                                <Search size={16} color="#555" />
+                            </button>
+                            <button
+                                onClick={() => router.push("/invite")}
+                                style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                                    background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                                    color: "white", border: "none", borderRadius: 10,
+                                    fontSize: 13, fontWeight: 700, cursor: "pointer",
+                                    boxShadow: "0 4px 14px rgba(76,175,80,0.3)",
+                                }}
+                            >
+                                <Plus size={15} strokeWidth={2.5} /> {t("tree_add_member")}
+                            </button>
+                        </>
                     ) : (
-                        <button
-                            onClick={() => setSearchOpen(true)}
-                            style={{
-                                display: "flex", alignItems: "center", gap: 7,
-                                padding: "10px 18px", background: "#F5F5F5",
-                                border: "none", borderRadius: 10, cursor: "pointer",
-                                fontSize: 13, fontWeight: 600, color: "#555",
-                            }}
-                        >
-                            <Search size={15} /> Search
-                        </button>
+                        /* Desktop: full controls */
+                        <>
+                            {searchOpen ? (
+                                <input
+                                    autoFocus
+                                    style={{
+                                        padding: "10px 14px", background: "#F5F5F5", border: "none",
+                                        borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#333",
+                                        outline: "none", width: 180,
+                                    }}
+                                    placeholder={t("tree_search_member")}
+                                    value={search}
+                                    onChange={e => handleSearch(e.target.value)}
+                                    onBlur={() => { if (!search) setSearchOpen(false) }}
+                                />
+                            ) : (
+                                <button
+                                    onClick={() => setSearchOpen(true)}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 7,
+                                        padding: "10px 18px", background: "#F5F5F5",
+                                        border: "none", borderRadius: 10, cursor: "pointer",
+                                        fontSize: 13, fontWeight: 600, color: "#555",
+                                    }}
+                                >
+                                    <Search size={15} /> {t("search")}
+                                </button>
+                            )}
+                            <button
+                                onClick={() => router.push("/reminders")}
+                                style={{
+                                    width: 40, height: 40, borderRadius: 10, background: "#FFF8E1",
+                                    border: "none", cursor: "pointer",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    position: "relative",
+                                }}
+                            >
+                                <Bell size={17} color="#FF9800" />
+                                <div style={{ position: "absolute", top: 7, right: 7, width: 8, height: 8, borderRadius: "50%", background: "#FF5252", border: "1.5px solid white" }} />
+                            </button>
+                            <button
+                                onClick={() => router.push("/invite")}
+                                style={{
+                                    display: "flex", alignItems: "center", gap: 8, padding: "10px 20px",
+                                    background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                                    color: "white", border: "none", borderRadius: 10,
+                                    fontSize: 14, fontWeight: 700, cursor: "pointer",
+                                    boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
+                                }}
+                            >
+                                <Plus size={16} strokeWidth={2.5} /> {t("tree_add_member")}
+                            </button>
+                        </>
                     )}
-
-                    <button
-                        onClick={() => router.push("/reminders")}
-                        style={{
-                            width: 40, height: 40, borderRadius: 10, background: "#FFF8E1",
-                            border: "none", cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            position: "relative",
-                        }}
-                    >
-                        <Bell size={17} color="#FF9800" />
-                        <div style={{ position: "absolute", top: 7, right: 7, width: 8, height: 8, borderRadius: "50%", background: "#FF5252", border: "1.5px solid white" }} />
-                    </button>
-
-                    <button
-                        onClick={() => router.push("/invite")}
-                        style={{
-                            display: "flex", alignItems: "center", gap: 8, padding: "10px 20px",
-                            background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
-                            color: "white", border: "none", borderRadius: 10,
-                            fontSize: 14, fontWeight: 700, cursor: "pointer",
-                            boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
-                        }}
-                    >
-                        <Plus size={16} strokeWidth={2.5} /> Add Member
-                    </button>
                 </div>
             </header>
+
+            {/* Mobile search bar (below header) */}
+            {isMobile && searchOpen && (
+                <div style={{ padding: "8px 16px", background: "#fff", borderBottom: "1px solid #F0F0F0" }}>
+                    <input
+                        autoFocus
+                        style={{
+                            width: "100%", padding: "10px 14px", background: "#F5F5F5", border: "none",
+                            borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#333",
+                            outline: "none", boxSizing: "border-box",
+                        }}
+                        placeholder={t("tree_search_member")}
+                        value={search}
+                        onChange={e => handleSearch(e.target.value)}
+                        onBlur={() => { if (!search) setSearchOpen(false) }}
+                    />
+                </div>
+            )}
 
             {/* ── Tree canvas ── */}
             <div
@@ -898,51 +966,67 @@ export default function FamilyTreePage({ params }: Props) {
                 })()}
 
                 {/* Hint */}
-                <div style={{
-                    position: "absolute", left: 24, bottom: 24,
-                    background: "rgba(255,255,255,0.85)", borderRadius: 10, padding: "8px 14px",
-                    fontSize: 12, color: "#888", fontWeight: 500,
-                    backdropFilter: "blur(4px)", border: "1px solid rgba(0,0,0,0.05)",
-                    pointerEvents: "none",
-                }}>
-                    🖱️ Drag to pan · Scroll to zoom · <strong>Click</strong> a member to view or add relatives
-                </div>
+                {!isMobile && (
+                    <div style={{
+                        position: "absolute", left: 24, bottom: 24,
+                        background: "rgba(255,255,255,0.85)", borderRadius: 10, padding: "6px 12px",
+                        fontSize: 12, color: "#888", fontWeight: 500,
+                        backdropFilter: "blur(4px)", border: "1px solid rgba(0,0,0,0.05)",
+                        pointerEvents: "none",
+                    }}>
+                        {t("tree_drag_hint")}
+                    </div>
+                )}
             </div>
 
             {/* ── Bottom stats ── */}
             <div
                 className="flex-shrink-0"
-                style={{ padding: "14px 32px", background: "#FFFFFF", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 32 }}
+                style={{
+                    padding: isMobile ? "12px 16px" : "14px 32px",
+                    paddingBottom: isMobile ? "calc(12px + env(safe-area-inset-bottom) + 68px)" : "14px",
+                    background: "#FFFFFF", borderTop: "1px solid rgba(0,0,0,0.06)",
+                    display: isMobile ? "grid" : "flex",
+                    gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+                    gap: isMobile ? 12 : 32,
+                    alignItems: isMobile ? undefined : "center",
+                }}
             >
                 {[
-                    { label: "Total Members", value: memberCount, emoji: "👥" },
-                    { label: "Generations",   value: generationCount || "—", emoji: "🌳" },
-                    { label: "Memories",      value: 0, emoji: "📸" },
-                    { label: "Reminders",     value: 0, emoji: "🔔" },
+                    { label: t("tree_total_members"), value: memberCount, emoji: "👥" },
+                    { label: t("me_generations"),     value: generationCount || "—", emoji: "🌳" },
+                    { label: t("memories_title"),     value: 0, emoji: "📸" },
+                    { label: t("reminders_title"),    value: 0, emoji: "🔔" },
                 ].map(stat => (
-                    <div key={stat.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 10, background: "#F0F8F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontSize: 18 }}>{stat.emoji}</span>
+                    <div key={stat.label} style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10 }}>
+                        <div style={{
+                            width: isMobile ? 34 : 38, height: isMobile ? 34 : 38,
+                            borderRadius: 10, background: "#F0F8F1",
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}>
+                            <span style={{ fontSize: isMobile ? 16 : 18 }}>{stat.emoji}</span>
                         </div>
                         <div>
-                            <p style={{ fontSize: 18, fontWeight: 800, color: "#1A1A2E", lineHeight: 1 }}>{stat.value}</p>
-                            <p style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{stat.label}</p>
+                            <p style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#1A1A2E", lineHeight: 1 }}>{stat.value}</p>
+                            <p style={{ fontSize: 10, color: "#888", marginTop: 2 }}>{stat.label}</p>
                         </div>
                     </div>
                 ))}
 
-                <div style={{ marginLeft: "auto" }}>
-                    <button
-                        onClick={() => router.push("/invite")}
-                        style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            padding: "10px 20px", background: "#E8F5E9", color: "#2E7D32",
-                            border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                        }}
-                    >
-                        <Plus size={15} /> Invite Family
-                    </button>
-                </div>
+                {!isMobile && (
+                    <div style={{ marginLeft: "auto" }}>
+                        <button
+                            onClick={() => router.push("/invite")}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "10px 20px", background: "#E8F5E9", color: "#2E7D32",
+                                border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                            }}
+                        >
+                            <Plus size={15} /> {t("tree_invite_family")}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Add Relative Panel */}
@@ -955,7 +1039,7 @@ export default function FamilyTreePage({ params }: Props) {
                     onAdded={name => {
                         setAddAnchor(null)
                         loadFamilyTree()
-                        showToast(`✅ ${name} added to the tree!`)
+                        showToast(t("tree_added_toast").replace("{name}", name))
                     }}
                 />
             )}

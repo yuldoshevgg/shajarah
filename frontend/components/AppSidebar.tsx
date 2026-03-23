@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 import {
     TreePine, Bell, ImageIcon, User, Settings,
-    UserPlus, Search, ChevronDown, LogOut,
+    UserPlus, ChevronDown, LogOut,
     Check, Plus, Crown,
     X, Sparkles, ArrowRight, Inbox,
 } from "lucide-react"
 import { getToken, removeToken } from "@/lib/auth"
+import { useT } from "@/lib/i18n"
 import { getFamilies, createFamily, Family } from "@/services/familyService"
 import { getUnreadCount, getNotifications, Notification } from "@/services/notificationService"
 import { apiFetch } from "@/lib/apiFetch"
@@ -73,6 +75,7 @@ function RoleBadge({ role }: { role: Role }) {
 // ── Create Tree modal ───────────────────────────────────────────────────────
 
 function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string) => Promise<void> }) {
+    const { t } = useT()
     const [step, setStep] = useState<"name" | "privacy">("name")
     const [treeName, setTreeName] = useState("")
     const [privacy, setPrivacy] = useState<"private" | "family" | "public">("family")
@@ -125,12 +128,12 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                         <TreePine size={30} color="#fff" strokeWidth={1.8} />
                     </div>
                     <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1A1A2E", marginBottom: 6, letterSpacing: -0.4 }}>
-                        {step === "name" ? "Name Your Family Tree" : "Privacy Settings"}
+                        {step === "name" ? t("dashboard_name_tree") : t("sidebar_privacy_settings")}
                     </h2>
                     <p style={{ fontSize: 13.5, color: "#888", lineHeight: 1.5 }}>
                         {step === "name"
-                            ? "Give your tree a name — usually your family surname works best."
-                            : "Choose who can access and collaborate on this tree."}
+                            ? t("dashboard_name_desc")
+                            : t("sidebar_privacy_family_desc")}
                     </p>
                     {/* Step dots */}
                     <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 16 }}>
@@ -147,12 +150,12 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                 {step === "name" ? (
                     <>
                         <label style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 0.8, display: "block", marginBottom: 8 }}>
-                            Family Tree Name
+                            {t("dashboard_name_tree_label")}
                         </label>
                         <input
                             autoFocus
                             type="text"
-                            placeholder="e.g. Hassan Family, The Nguyens…"
+                            placeholder={t("dashboard_name_placeholder")}
                             value={treeName}
                             onChange={e => setTreeName(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && treeName.trim() && setStep("privacy")}
@@ -172,7 +175,7 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                         }}>
                             <Sparkles size={15} color="#4CAF50" style={{ marginTop: 1, flexShrink: 0 }} />
                             <p style={{ fontSize: 12.5, color: "#666", lineHeight: 1.55 }}>
-                                You can rename your tree anytime. Start simple — your family name or a meaningful title.
+                                {t("sidebar_name_tree_hint")}
                             </p>
                         </div>
                         <button
@@ -189,16 +192,16 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                                 transition: "all 0.2s",
                             }}
                         >
-                            Continue <ArrowRight size={16} />
+                            {t("dashboard_continue")} <ArrowRight size={16} />
                         </button>
                     </>
                 ) : (
                     <>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
                             {([
-                                { id: "private" as const, emoji: "🔒", label: "Private",     desc: "Only you can view and edit this tree" },
-                                { id: "family"  as const, emoji: "👨‍👩‍👧‍👦", label: "Family Only", desc: "Invited members can view and contribute" },
-                                { id: "public"  as const, emoji: "🌍", label: "Public",      desc: "Anyone with the link can view (read-only)" },
+                                { id: "private" as const, emoji: "🔒", label: t("sidebar_privacy_private"), desc: t("sidebar_privacy_private_desc") },
+                                { id: "family"  as const, emoji: "👨‍👩‍👧‍👦", label: t("sidebar_privacy_family"),  desc: t("sidebar_privacy_family_desc") },
+                                { id: "public"  as const, emoji: "🌍", label: t("sidebar_privacy_public"),  desc: t("sidebar_privacy_public_desc") },
                             ]).map(opt => (
                                 <button
                                     key={opt.id}
@@ -237,7 +240,7 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                                     border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer",
                                 }}
                             >
-                                Back
+                                {t("back")}
                             </button>
                             <button
                                 disabled={loading}
@@ -251,7 +254,7 @@ function CreateTreeModal({ onClose, onCreate }: { onClose: () => void; onCreate:
                                     boxShadow: "0 4px 16px rgba(76,175,80,0.3)", opacity: loading ? 0.7 : 1,
                                 }}
                             >
-                                <TreePine size={16} strokeWidth={2} /> {loading ? "Creating…" : "Create Tree"}
+                                <TreePine size={16} strokeWidth={2} /> {loading ? t("sidebar_creating") : t("sidebar_create_btn")}
                             </button>
                         </div>
                     </>
@@ -337,6 +340,7 @@ function FamilySwitcher({
     onCreated: (f: Family) => void
 }) {
     const router = useRouter()
+    const { t } = useT()
     const [isOpen, setIsOpen] = useState(false)
     const [showCreate, setShowCreate] = useState(false)
     const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 })
@@ -435,14 +439,14 @@ function FamilySwitcher({
                 >
                     <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #F5F5F5" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, color: "#BDBDBD", letterSpacing: 1, textTransform: "uppercase" }}>
-                            Switch Family Tree
+                            {t("sidebar_switch_family")}
                         </p>
                     </div>
 
                     {ownedFamilies.length > 0 && (
                         <div style={{ padding: "8px 8px 4px" }}>
                             <p style={{ fontSize: 10, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.8, textTransform: "uppercase", padding: "4px 8px 6px" }}>
-                                Your Trees
+                                {t("sidebar_your_trees")}
                             </p>
                             {ownedFamilies.map(f => (
                                 <FamilyRow
@@ -460,7 +464,7 @@ function FamilySwitcher({
                     {joinedFamilies.length > 0 && (
                         <div style={{ padding: "4px 8px", borderTop: ownedFamilies.length ? "1px solid #F5F5F5" : "none" }}>
                             <p style={{ fontSize: 10, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.8, textTransform: "uppercase", padding: "8px 8px 6px" }}>
-                                Joined
+                                {t("sidebar_joined")}
                             </p>
                             {joinedFamilies.map(f => (
                                 <FamilyRow
@@ -494,8 +498,8 @@ function FamilySwitcher({
                                 <Plus size={16} color="#4CAF50" strokeWidth={2.5} />
                             </div>
                             <div style={{ textAlign: "left" }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: "#2E7D32" }}>Create New Tree</p>
-                                <p style={{ fontSize: 11, color: "#999", marginTop: 1 }}>Start a brand new family tree</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#2E7D32" }}>{t("sidebar_create_new_tree")}</p>
+                                <p style={{ fontSize: 11, color: "#999", marginTop: 1 }}>{t("sidebar_create_tree_desc")}</p>
                             </div>
                         </button>
                     </div>
@@ -535,13 +539,15 @@ interface MeResponse {
 
 interface Props {
     activeFamilyId?: string
-    activeSection?: "tree" | "reminders" | "memories" | "profile" | "settings" | "invite" | "finder" | "invitations"
+    activeSection?: "tree" | "reminders" | "memories" | "profile" | "settings" | "invite" | "invitations"
 }
 
 // ── AppSidebar ─────────────────────────────────────────────────────────────
 
 export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: Props) {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile, isTablet } = useBreakpoint()
     const [families, setFamilies] = useState<Family[]>([])
     const [unread, setUnread] = useState(0)
     const [user, setUser] = useState<UserProfile | null>(null)
@@ -583,16 +589,15 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
     const treeHref = currentFamily ? `/family-tree/${currentFamily.id}` : "/families"
 
     const NAV_ITEMS = [
-        { icon: TreePine,   label: "Family Tree",        key: "tree"         as const, href: treeHref,      badge: 0 },
-        { icon: Inbox,      label: "Invitations",        key: "invitations"  as const, href: "/invitations", badge: pendingCount },
-        { icon: Bell,       label: "Reminders",          key: "reminders"    as const, href: "/reminders",  badge: unread },
-        { icon: ImageIcon,  label: "Memories",           key: "memories"     as const, href: "/memories",   badge: 0 },
-        { icon: User,       label: "My Profile",         key: "profile"      as const, href: "/me",         badge: 0 },
-        { icon: Settings,   label: "Settings",           key: "settings"     as const, href: "/settings",   badge: 0 },
+        { icon: TreePine,   label: t("sidebar_tree"),         key: "tree"         as const, href: treeHref,      badge: 0 },
+        { icon: Inbox,      label: t("sidebar_invitations"),  key: "invitations"  as const, href: "/invitations", badge: pendingCount },
+        { icon: Bell,       label: t("sidebar_reminders"),    key: "reminders"    as const, href: "/reminders",  badge: unread },
+        { icon: ImageIcon,  label: t("sidebar_memories"),     key: "memories"     as const, href: "/memories",   badge: 0 },
+        { icon: User,       label: t("sidebar_my_profile"),   key: "profile"      as const, href: "/me",         badge: 0 },
+        { icon: Settings,   label: t("sidebar_settings"),     key: "settings"     as const, href: "/settings",   badge: 0 },
     ]
     const TOOL_ITEMS = [
-        { icon: UserPlus, label: "Invite Family",       key: "invite"  as const, href: "/invite" },
-        { icon: Search,   label: "Relationship Finder", key: "finder"  as const, href: "/finder" },
+        { icon: UserPlus, label: t("sidebar_invite"), key: "invite" as const, href: "/invite" },
     ]
 
     const userInitials = user
@@ -601,6 +606,75 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
     const userName  = user ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email : ""
     const userEmail = user?.email ?? ""
 
+    // ── Mobile: bottom navigation bar ──────────────────────────────────────
+    if (isMobile) {
+        return (
+            <BottomNav
+                activeSection={activeSection}
+                treeHref={treeHref}
+                invitationsBadge={pendingCount}
+                remindersBadge={unread}
+                router={router}
+            />
+        )
+    }
+
+    // ── Tablet: 72px icon rail ──────────────────────────────────────────────
+    if (isTablet) {
+        return (
+            <aside style={{
+                width: 72, minWidth: 72, height: "100vh",
+                position: "sticky", top: 0,
+                background: "#FFFFFF", borderRight: "1px solid rgba(0,0,0,0.07)",
+                display: "flex", flexDirection: "column", alignItems: "center",
+                boxShadow: "2px 0 24px rgba(0,0,0,0.04)", zIndex: 100,
+                overflowY: "auto", flexShrink: 0,
+                padding: "20px 0 16px",
+            }}>
+                {/* Logo icon */}
+                <div style={{
+                    width: 44, height: 44, borderRadius: 14,
+                    background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
+                    marginBottom: 20, flexShrink: 0,
+                }}>
+                    <span style={{ fontSize: 24 }}>🌿</span>
+                </div>
+
+                {/* Nav items */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, alignItems: "center" }}>
+                    {NAV_ITEMS.map(({ icon: Icon, label, key, href, badge }) => (
+                        <TabletNavBtn
+                            key={key}
+                            icon={Icon}
+                            label={label}
+                            active={activeSection === key}
+                            badge={badge}
+                            onClick={() => router.push(href)}
+                        />
+                    ))}
+                </div>
+
+                {/* User avatar */}
+                <div
+                    onClick={() => router.push("/me")}
+                    title={userName || userEmail}
+                    style={{
+                        width: 40, height: 40, borderRadius: "50%",
+                        background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 15, fontWeight: 700, color: "#fff",
+                        cursor: "pointer", flexShrink: 0,
+                    }}
+                >
+                    {userInitials}
+                </div>
+            </aside>
+        )
+    }
+
+    // ── Desktop: full 260px sidebar ─────────────────────────────────────────
     return (
         <aside style={{
             width: 260, minWidth: 260, height: "100vh",
@@ -623,7 +697,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                     </div>
                     <div>
                         <p style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5, lineHeight: 1.1 }}>Shajarah</p>
-                        <p style={{ fontSize: 11, color: "#9E9E9E", marginTop: 2 }}>Family Tree App</p>
+                        <p style={{ fontSize: 11, color: "#9E9E9E", marginTop: 2 }}>{t("sidebar_tagline")}</p>
                     </div>
                 </div>
             </div>
@@ -646,7 +720,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
             {/* Navigation */}
             <div style={{ padding: "14px 12px", flex: 1 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: "#C0C0C0", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, paddingLeft: 8 }}>
-                    Navigation
+                    {t("sidebar_nav")}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {NAV_ITEMS.map(({ icon: Icon, label, key, href, badge }) => (
@@ -662,7 +736,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                 </div>
 
                 <p style={{ fontSize: 10, fontWeight: 700, color: "#C0C0C0", letterSpacing: 1, textTransform: "uppercase", margin: "20px 0 8px", paddingLeft: 8 }}>
-                    Tools
+                    {t("sidebar_tools")}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {TOOL_ITEMS.map(({ icon: Icon, label, key, href }) => (
@@ -696,7 +770,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                                 📨
                             </div>
                             <div style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: "#F57F17", marginBottom: 2 }}>Pending Invitation</p>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: "#F57F17", marginBottom: 2 }}>{t("sidebar_pending_invite")}</p>
                                 <p style={{ fontSize: 11.5, color: "#666", lineHeight: 1.45 }}>
                                     <strong>{pendingInvite.inviterName}</strong> invited you to join <strong>{pendingInvite.familyName}</strong>
                                 </p>
@@ -711,7 +785,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                                 boxShadow: "0 3px 10px rgba(249,168,37,0.35)",
                             }}
                         >
-                            {pendingCount > 1 ? `View All (${pendingCount})` : "View Invitation"} <ArrowRight size={12} />
+                            {pendingCount > 1 ? `${t("sidebar_view_all_count")} (${pendingCount})` : t("sidebar_view_invitation")} <ArrowRight size={12} />
                         </button>
                     </div>
                 </div>
@@ -752,6 +826,141 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                 </div>
             </div>
         </aside>
+    )
+}
+
+// ── TabletNavBtn ────────────────────────────────────────────────────────────
+
+function TabletNavBtn({
+    icon: Icon, label, active, badge, onClick,
+}: {
+    icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>
+    label: string
+    active: boolean
+    badge?: number
+    onClick: () => void
+}) {
+    const [hovered, setHovered] = useState(false)
+    return (
+        <div style={{ position: "relative" }}>
+            <button
+                onClick={onClick}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                title={label}
+                style={{
+                    width: 48, height: 48, borderRadius: 12, border: "none",
+                    background: active ? "#4CAF50" : hovered ? "#F0F8F0" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", position: "relative", transition: "background 0.15s",
+                }}
+            >
+                <Icon size={20} color={active ? "#fff" : hovered ? "#4CAF50" : "#888"} strokeWidth={active ? 2.5 : 1.8} />
+                {!!badge && (
+                    <div style={{
+                        position: "absolute", top: 8, right: 8,
+                        width: 8, height: 8, borderRadius: "50%",
+                        background: "#FF5252", border: "2px solid #fff",
+                    }} />
+                )}
+            </button>
+            {/* Hover tooltip */}
+            {hovered && (
+                <div style={{
+                    position: "absolute", left: "calc(100% + 10px)", top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "#1A1A2E", color: "#fff",
+                    padding: "5px 10px", borderRadius: 7,
+                    fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+                    zIndex: 1000, pointerEvents: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                }}>
+                    {label}
+                    {/* Arrow */}
+                    <div style={{
+                        position: "absolute", top: "50%", left: -5,
+                        transform: "translateY(-50%)",
+                        width: 0, height: 0,
+                        borderTop: "5px solid transparent",
+                        borderBottom: "5px solid transparent",
+                        borderRight: "5px solid #1A1A2E",
+                    }} />
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── BottomNav ───────────────────────────────────────────────────────────────
+
+function BottomNav({
+    activeSection, treeHref, invitationsBadge, remindersBadge, router,
+}: {
+    activeSection: string
+    treeHref: string
+    invitationsBadge: number
+    remindersBadge: number
+    router: ReturnType<typeof useRouter>
+}) {
+    const { t } = useT()
+    const items = [
+        { icon: TreePine,  label: t("sidebar_tree"),        key: "tree",        href: treeHref,       badge: 0 },
+        { icon: Inbox,     label: t("sidebar_invitations"), key: "invitations", href: "/invitations", badge: invitationsBadge },
+        { icon: Bell,      label: t("sidebar_reminders"),   key: "reminders",   href: "/reminders",   badge: remindersBadge },
+        { icon: ImageIcon, label: t("sidebar_memories"),    key: "memories",    href: "/memories",    badge: 0 },
+        { icon: User,      label: t("sidebar_my_profile"),  key: "profile",     href: "/me",          badge: 0 },
+    ]
+    return (
+        <nav style={{
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200,
+            background: "#FFFFFF", borderTop: "1px solid rgba(0,0,0,0.08)",
+            boxShadow: "0 -4px 24px rgba(0,0,0,0.06)",
+            display: "flex", alignItems: "stretch",
+            height: "calc(64px + env(safe-area-inset-bottom))",
+            paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+            {items.map(({ icon: Icon, label, key, href, badge }) => {
+                const active = activeSection === key
+                return (
+                    <button
+                        key={key}
+                        onClick={() => router.push(href)}
+                        style={{
+                            flex: 1, display: "flex", flexDirection: "column",
+                            alignItems: "center", justifyContent: "center", gap: 3,
+                            border: "none", background: "transparent",
+                            cursor: "pointer", position: "relative", padding: "8px 4px",
+                            color: active ? "#2E7D32" : "#9E9E9E",
+                        }}
+                    >
+                        {/* Active indicator pill at top */}
+                        {active && (
+                            <div style={{
+                                position: "absolute", top: 0, left: "50%",
+                                transform: "translateX(-50%)",
+                                width: 28, height: 3, borderRadius: "0 0 3px 3px",
+                                background: "#4CAF50",
+                            }} />
+                        )}
+                        <div style={{ position: "relative" }}>
+                            <Icon size={22} color={active ? "#2E7D32" : "#9E9E9E"} strokeWidth={active ? 2.5 : 1.8} />
+                            {badge > 0 && (
+                                <div style={{
+                                    position: "absolute", top: -4, right: -6,
+                                    width: 16, height: 16, borderRadius: "50%",
+                                    background: "#FF5252", border: "2px solid #fff",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    fontSize: 9, fontWeight: 700, color: "#fff",
+                                }}>
+                                    {badge > 9 ? "9+" : badge}
+                                </div>
+                            )}
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, lineHeight: 1 }}>{label}</span>
+                    </button>
+                )
+            })}
+        </nav>
     )
 }
 

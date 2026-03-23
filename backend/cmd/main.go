@@ -53,9 +53,6 @@ func main() {
 	documentRepo := repository.NewDocumentRepository()
 	treeService := services.NewFamilyTreeService()
 	genealogyService := services.NewGenealogyTreeService()
-	inferenceSvc := services.NewInferenceService()
-	kinshipSvc := services.NewKinshipService()
-	kinshipHandler := handlers.NewKinshipHandler(kinshipSvc)
 	gedcomSvc := services.NewGEDCOMService()
 
 	authHandler := handlers.NewAuthHandler(userRepo, personRepo)
@@ -92,12 +89,6 @@ func main() {
 	auth.DELETE("/relationships/:id", relHandler.DeleteRelationship)
 	auth.GET("/persons/:id/relationships", relHandler.GetPersonRelationshipsEnriched)
 
-	inferenceHandler := handlers.NewInferenceHandler(inferenceSvc)
-	auth.GET("/persons/:id/inferred-relatives", inferenceHandler.GetInferredRelatives)
-	auth.GET("/persons/:id/relationship-to/:other", inferenceHandler.FindRelationship)
-
-	auth.GET("/persons/:id/kinship/:other", kinshipHandler.GetKinship)
-	auth.GET("/persons/:id/kinship-map", kinshipHandler.GetKinshipMap)
 
 	invitationHandler := handlers.NewInvitationHandler(invitationRepo, memberRepo, familyRepo, userRepo, notifRepo, personRepo, relRepo, treeService, genealogyService)
 	r.GET("/invitations/:token/preview", invitationHandler.GetInvitation)

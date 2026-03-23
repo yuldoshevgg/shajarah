@@ -8,6 +8,8 @@ import { getFamilies, Family } from "@/services/familyService"
 import { apiFetch } from "@/lib/apiFetch"
 import API_BASE from "@/services/api"
 import AppSidebar from "@/components/AppSidebar"
+import { useT, TKey } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 interface Reminder {
     id: string
@@ -20,12 +22,12 @@ interface Reminder {
     days_until: number
 }
 
-function getDaysLabel(days: number) {
-    if (days === 0) return "Today! 🎉"
-    if (days === 1) return "Tomorrow"
-    if (days <= 7) return `In ${days} days`
-    if (days <= 30) return `In ${Math.floor(days / 7)} weeks`
-    return `In ${Math.floor(days / 30)} months`
+function getDaysLabel(days: number, t: (k: TKey) => string) {
+    if (days === 0) return t("reminders_today")
+    if (days === 1) return t("reminders_tomorrow")
+    if (days <= 7) return `${days} ${t("reminders_in_days")}`
+    if (days <= 30) return `${Math.floor(days / 7)} ${t("reminders_in_weeks")}`
+    return `${Math.floor(days / 30)} ${t("reminders_in_months")}`
 }
 
 function getDaysColor(days: number) {
@@ -44,6 +46,7 @@ function ReminderSection({
     bgColor: string
     reminders: Reminder[]
 }) {
+    const { t } = useT()
     return (
         <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -52,12 +55,12 @@ function ReminderSection({
                 </div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1A1A2E" }}>{title}</h3>
                 <span style={{ marginLeft: "auto", fontSize: 12, color, fontWeight: 700, background: bgColor, padding: "4px 12px", borderRadius: 20 }}>
-                    {reminders.length} total
+                    {reminders.length} {t("reminders_total")}
                 </span>
             </div>
             <div style={{ background: "white", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                 {reminders.length === 0 ? (
-                    <p style={{ padding: "24px", textAlign: "center", fontSize: 13, color: "#9E9E9E" }}>No {title.toLowerCase()} yet</p>
+                    <p style={{ padding: "24px", textAlign: "center", fontSize: 13, color: "#9E9E9E" }}>{t("reminders_none")}</p>
                 ) : reminders.map((r, i) => {
                     const daysColor = getDaysColor(r.days_until)
                     return (
@@ -91,7 +94,7 @@ function ReminderSection({
                                     background: `${daysColor}18`, padding: "4px 12px",
                                     borderRadius: 20, whiteSpace: "nowrap",
                                 }}>
-                                    {getDaysLabel(r.days_until)}
+                                    {getDaysLabel(r.days_until, t)}
                                 </span>
                                 <ChevronRight size={14} color="#C8C8C8" />
                             </div>
@@ -105,6 +108,8 @@ function ReminderSection({
 
 export default function RemindersPage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const [family, setFamily] = useState<Family | null>(null)
     const [reminders, setReminders] = useState<Reminder[]>([])
     const [loading, setLoading] = useState(true)
@@ -135,36 +140,36 @@ export default function RemindersPage() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 {/* Header */}
                 <header style={{
-                    padding: "20px 32px", background: "#FFFFFF",
+                    padding: isMobile ? "14px 16px" : "20px 32px", background: "#FFFFFF",
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     boxShadow: "0 2px 12px rgba(0,0,0,0.05)", flexShrink: 0, zIndex: 10,
                 }}>
                     <div>
-                        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>Reminders</h1>
-                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>Never miss an important family date</p>
+                        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>{t("reminders_title")}</h1>
+                        <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 3 }}>{t("reminders_subtitle")}</p>
                     </div>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: "#FFF8E1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Bell size={20} color="#FF9800" />
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#FFF8E1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Bell size={18} color="#FF9800" />
                     </div>
                 </header>
 
                 {/* Body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "#F7F5F0" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px" : "28px 32px", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined, background: "#F7F5F0" }}>
                     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
                         {loading ? (
-                            <p style={{ textAlign: "center", color: "#9E9E9E", marginTop: 80 }}>Loading reminders…</p>
+                            <p style={{ textAlign: "center", color: "#9E9E9E", marginTop: 80 }}>{t("reminders_loading")}</p>
                         ) : (
                             <>
                                 {/* Top grid */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 20, marginBottom: 28 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: 20, marginBottom: 28 }}>
                                     {/* Upcoming banner */}
                                     <div style={{ background: "linear-gradient(135deg, #FF9800, #F57C00)", borderRadius: 22, padding: "24px 28px" }}>
                                         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 16 }}>
-                                            Coming Up Soon
+                                            {t("reminders_coming_up")}
                                         </p>
                                         {upcoming.length === 0 ? (
-                                            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }}>No upcoming reminders</p>
+                                            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{t("reminders_none")}</p>
                                         ) : (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                                                 {upcoming.map(r => (
@@ -192,7 +197,7 @@ export default function RemindersPage() {
                                                             background: "rgba(255,255,255,0.2)",
                                                             padding: "4px 12px", borderRadius: 20, flexShrink: 0,
                                                         }}>
-                                                            {getDaysLabel(r.days_until)}
+                                                            {getDaysLabel(r.days_until, t)}
                                                         </span>
                                                     </div>
                                                 ))}
@@ -203,9 +208,9 @@ export default function RemindersPage() {
                                     {/* Stats */}
                                     <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 200 }}>
                                         {[
-                                            { label: "Birthdays",     value: birthdays.length,     emoji: "🎂", color: "#FCE4EC" },
-                                            { label: "Anniversaries", value: anniversaries.length, emoji: "💍", color: "#F3E5F5" },
-                                            { label: "This Month",    value: thisMonth.length,     emoji: "📅", color: "#E8F5E9" },
+                                            { label: t("reminders_birthdays"),    value: birthdays.length,     emoji: "🎂", color: "#FCE4EC" },
+                                            { label: t("reminders_anniversaries"), value: anniversaries.length, emoji: "💍", color: "#F3E5F5" },
+                                            { label: t("reminders_this_month"),   value: thisMonth.length,     emoji: "📅", color: "#E8F5E9" },
                                         ].map(s => (
                                             <div key={s.label} style={{
                                                 background: "#FFFFFF", borderRadius: 16, padding: "16px 20px",
@@ -225,16 +230,16 @@ export default function RemindersPage() {
                                 </div>
 
                                 {/* Two-column sections */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
                                     <ReminderSection
-                                        title="Birthdays"
+                                        title={t("reminders_birthdays")}
                                         icon={Cake}
                                         color="#E91E63"
                                         bgColor="#FCE4EC"
                                         reminders={birthdays}
                                     />
                                     <ReminderSection
-                                        title="Anniversaries"
+                                        title={t("reminders_anniversaries")}
                                         icon={Heart}
                                         color="#9C27B0"
                                         bgColor="#F3E5F5"

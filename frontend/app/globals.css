@@ -29,9 +29,24 @@ body {
   box-sizing: border-box;
 }
 
-@media (max-width: 640px) {
-  h1 { font-size: 1.5rem !important; }
-  h2 { font-size: 1.2rem !important; }
+/* ── Responsive page layout helpers ─────────────────────────────────────── */
+
+/* Pages add padding-bottom on mobile so content isn't hidden behind BottomNav */
+@media (max-width: 767px) {
+  .page-scroll {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  h1 { font-size: 1.4rem !important; }
+  h2 { font-size: 1.15rem !important; }
 
   .families-grid,
   .person-grid {
@@ -43,15 +58,33 @@ body {
   }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
 .react-flow__node {
   touch-action: none;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .react-flow__controls {
-    bottom: 60px !important;
+    bottom: 76px !important;
   }
   .react-flow__minimap {
-    display: none;
+    display: none !important;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .react-flow__controls {
+    bottom: 76px !important;
   }
 }

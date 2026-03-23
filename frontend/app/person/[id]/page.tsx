@@ -12,6 +12,8 @@ import API_BASE from "@/services/api"
 import { updatePerson } from "@/services/personEditService"
 import { getPerson, Person } from "@/services/personService"
 import AppSidebar from "@/components/AppSidebar"
+import { useT, TKey } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 
 interface Props {
     params: Promise<{ id: string }>
@@ -38,11 +40,11 @@ function birthYear(iso: string | null | undefined): string {
     return new Date(iso).getFullYear().toString()
 }
 
-function relLabel(relType: string): string {
+function relLabel(relType: string, t: (k: TKey) => string): string {
     const map: Record<string, string> = {
-        father: "Father", mother: "Mother", parent: "Parent",
-        sibling: "Sibling", brother: "Brother", sister: "Sister",
-        spouse: "Spouse", child: "Child", son: "Son", daughter: "Daughter",
+        father: t("rel_father"), mother: t("rel_mother"), parent: t("rel_parent"),
+        sibling: t("rel_sibling"), brother: t("rel_brother"), sister: t("rel_sister"),
+        spouse: t("rel_spouse"), child: t("rel_child"), son: t("rel_son"), daughter: t("rel_daughter"),
     }
     return map[relType] ?? relType.charAt(0).toUpperCase() + relType.slice(1)
 }
@@ -50,6 +52,8 @@ function relLabel(relType: string): string {
 export default function PersonProfilePage({ params }: Props) {
     const { id } = use(params)
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
 
     const [person, setPerson]       = useState<Person | null>(null)
     const [canEdit, setCanEdit]     = useState(false)
@@ -114,7 +118,7 @@ export default function PersonProfilePage({ params }: Props) {
                     setLineage(arr)
                 })
                 .catch(() => {})
-        }).catch(() => setError("Person not found")).finally(() => setLoading(false))
+        }).catch(() => setError(t("no_content"))).finally(() => setLoading(false))
     }, [id])
 
     const startEdit = () => {
@@ -140,7 +144,7 @@ export default function PersonProfilePage({ params }: Props) {
             })
             setPerson(updated)
             setEditing(false)
-        } catch { setError("Failed to save") }
+        } catch { setError(t("person_failed_save")) }
         finally { setSaving(false) }
     }
 
@@ -173,7 +177,7 @@ export default function PersonProfilePage({ params }: Props) {
             <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
                 <AppSidebar activeSection="tree" />
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <p style={{ color: "#9E9E9E", fontSize: 14 }}>Loading…</p>
+                    <p style={{ color: "#9E9E9E", fontSize: 14 }}>{t("loading")}</p>
                 </div>
             </div>
         )
@@ -184,7 +188,7 @@ export default function PersonProfilePage({ params }: Props) {
             <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
                 <AppSidebar activeSection="tree" />
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <p style={{ color: "#EF5350", fontSize: 14 }}>{error || "Person not found"}</p>
+                    <p style={{ color: "#EF5350", fontSize: 14 }}>{error || t("no_content")}</p>
                 </div>
             </div>
         )
@@ -211,14 +215,14 @@ export default function PersonProfilePage({ params }: Props) {
                                 color: "#555", fontSize: 14, fontWeight: 600, padding: 0,
                             }}
                         >
-                            <ArrowLeft size={18} /> Back
+                            <ArrowLeft size={18} /> {t("back")}
                         </button>
                         <div style={{ marginLeft: 8 }}>
                             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>
-                                {canEdit ? "My Profile" : fullName}
+                                {canEdit ? t("me_title") : fullName}
                             </h1>
                             <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 2 }}>
-                                {canEdit ? "Your place in the family tree" : "Family member profile"}
+                                {canEdit ? t("me_subtitle") : t("person_family_member_subtitle")}
                             </p>
                         </div>
                     </div>
@@ -236,7 +240,7 @@ export default function PersonProfilePage({ params }: Props) {
                                             fontSize: 14, fontWeight: 600, color: "#555",
                                         }}
                                     >
-                                        <X size={15} /> Cancel
+                                        <X size={15} /> {t("cancel")}
                                     </button>
                                     <button
                                         onClick={handleSave}
@@ -251,7 +255,7 @@ export default function PersonProfilePage({ params }: Props) {
                                             opacity: saving ? 0.7 : 1,
                                         }}
                                     >
-                                        <Save size={15} /> {saving ? "Saving…" : "Save Changes"}
+                                        <Save size={15} /> {saving ? t("me_saving") : t("me_save")}
                                     </button>
                                 </>
                             ) : (
@@ -264,7 +268,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         fontSize: 14, fontWeight: 600, color: "#555",
                                     }}
                                 >
-                                    <Edit2 size={15} /> Edit Profile
+                                    <Edit2 size={15} /> {t("edit")}
                                 </button>
                             )}
                         </div>
@@ -272,7 +276,7 @@ export default function PersonProfilePage({ params }: Props) {
                 </header>
 
                 {/* Body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "#F7F5F0" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px" : "28px 32px", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined, background: "#F7F5F0" }}>
                     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
                         {error && (
@@ -322,7 +326,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         <input
                                             value={firstName}
                                             onChange={e => setFirstName(e.target.value)}
-                                            placeholder="First name"
+                                            placeholder={t("me_first_name")}
                                             style={{
                                                 fontSize: 24, fontWeight: 800, color: "#fff",
                                                 background: "rgba(255,255,255,0.15)",
@@ -333,7 +337,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         <input
                                             value={lastName}
                                             onChange={e => setLastName(e.target.value)}
-                                            placeholder="Last name"
+                                            placeholder={t("me_last_name")}
                                             style={{
                                                 fontSize: 24, fontWeight: 800, color: "#fff",
                                                 background: "rgba(255,255,255,0.15)",
@@ -352,7 +356,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 16px", background: "rgba(255,255,255,0.2)", borderRadius: 20 }}>
                                             <User size={13} color="rgba(255,255,255,0.9)" />
                                             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
-                                                {person.gender === "female" ? "Female" : "Male"}
+                                                {person.gender === "female" ? t("female") : t("male")}
                                             </span>
                                         </div>
                                     )}
@@ -360,13 +364,13 @@ export default function PersonProfilePage({ params }: Props) {
                                         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 16px", background: "rgba(255,255,255,0.15)", borderRadius: 20 }}>
                                             <Calendar size={13} color="rgba(255,255,255,0.8)" />
                                             <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)" }}>
-                                                Born {birthYear(person.birth_date)}
+                                                {t("me_born")} {birthYear(person.birth_date)}
                                             </span>
                                         </div>
                                     )}
                                     {canEdit && (
                                         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 16px", background: "rgba(255,255,255,0.2)", borderRadius: 20 }}>
-                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Me</span>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{t("me_badge")}</span>
                                         </div>
                                     )}
                                 </div>
@@ -379,9 +383,9 @@ export default function PersonProfilePage({ params }: Props) {
                                 position: "relative", zIndex: 1, flexShrink: 0,
                             }}>
                                 {[
-                                    { label: "Relatives",   value: relCount },
-                                    { label: "Memories",    value: 0 },
-                                    { label: "Generations", value: maxGenLevel || (lineage.length > 0 ? 1 : 0) },
+                                    { label: t("me_relatives"),   value: relCount },
+                                    { label: t("memories_title"), value: 0 },
+                                    { label: t("me_generations"), value: maxGenLevel || (lineage.length > 0 ? 1 : 0) },
                                 ].map((stat, i) => (
                                     <div key={stat.label} style={{
                                         textAlign: "center", padding: "0 24px",
@@ -395,37 +399,37 @@ export default function PersonProfilePage({ params }: Props) {
                         </div>
 
                         {/* Two-column layout */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
 
                             {/* Left column */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
                                 {/* Personal info */}
                                 <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 20 }}>Personal Information</h3>
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 20 }}>{t("me_personal_info")}</h3>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                                        <InfoRow icon={Calendar} label="Birthday">
+                                        <InfoRow icon={Calendar} label={t("me_birthday")}>
                                             {editing ? (
                                                 <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} style={editInputStyle} />
                                             ) : (
                                                 <span>{formatDate(person.birth_date)}</span>
                                             )}
                                         </InfoRow>
-                                        <InfoRow icon={Mail} label="Email">
+                                        <InfoRow icon={Mail} label={t("me_email_label")}>
                                             {editing ? (
                                                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={editInputStyle} />
                                             ) : (
                                                 <span>{person.email || "—"}</span>
                                             )}
                                         </InfoRow>
-                                        <InfoRow icon={MapPin} label="Location">
+                                        <InfoRow icon={MapPin} label={t("me_location")}>
                                             {editing ? (
-                                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="City, Country" style={editInputStyle} />
+                                                <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder={t("me_location_placeholder")} style={editInputStyle} />
                                             ) : (
                                                 <span>{location || "—"}</span>
                                             )}
                                         </InfoRow>
-                                        <InfoRow icon={TreePine} label="Member Since">
+                                        <InfoRow icon={TreePine} label={t("me_member_since")}>
                                             <span>{formatDate(person.created_at)}</span>
                                         </InfoRow>
                                     </div>
@@ -434,14 +438,14 @@ export default function PersonProfilePage({ params }: Props) {
                                 {/* Biography / About */}
                                 <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                                     <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 14 }}>
-                                        {canEdit ? "About Me" : "Biography"}
+                                        {canEdit ? t("me_about_me") : t("me_biography")}
                                     </h3>
                                     {editing ? (
                                         <textarea
                                             value={biography}
                                             onChange={e => setBiography(e.target.value)}
                                             rows={4}
-                                            placeholder="Tell your family about yourself…"
+                                            placeholder={t("me_bio_placeholder")}
                                             style={{
                                                 width: "100%", fontSize: 15, color: "#555", lineHeight: 1.65,
                                                 background: "#F5F5F5", border: "none", borderRadius: 12,
@@ -451,7 +455,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         />
                                     ) : (
                                         <p style={{ fontSize: 15, color: person.biography ? "#555" : "#BDBDBD", lineHeight: 1.65 }}>
-                                            {person.biography || (canEdit ? "No bio yet. Click Edit Profile to add one." : "No biography added yet.")}
+                                            {person.biography || (canEdit ? t("me_no_bio") : t("person_no_bio"))}
                                         </p>
                                     )}
                                 </div>
@@ -463,7 +467,7 @@ export default function PersonProfilePage({ params }: Props) {
                                 {parents.length > 0 && (
                                     <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                                         <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>
-                                            {canEdit ? "My Parents" : "Parents"}
+                                            {canEdit ? t("me_my_parents") : t("person_parents")}
                                         </h3>
                                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                                             {parents.map(rel => (
@@ -476,7 +480,7 @@ export default function PersonProfilePage({ params }: Props) {
                                 {siblings.length > 0 && (
                                     <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                                         <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E", marginBottom: 18 }}>
-                                            {canEdit ? "My Siblings" : "Siblings"}
+                                            {canEdit ? t("me_my_siblings") : t("person_siblings")}
                                         </h3>
                                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                                             {siblings.map(rel => (
@@ -501,7 +505,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         }}
                                     >
                                         <TreePine size={20} />
-                                        {canEdit ? "View My Position in Family Tree" : "View in Family Tree"}
+                                        {canEdit ? t("me_view_tree") : t("person_view_tree_btn")}
                                     </button>
                                 )}
 
@@ -511,7 +515,7 @@ export default function PersonProfilePage({ params }: Props) {
                                         borderRadius: 20, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                                     }}>
                                         <p style={{ fontSize: 13, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 12 }}>
-                                            {canEdit ? "My Position" : "Position in Tree"}
+                                            {canEdit ? t("me_my_position") : t("person_position")}
                                         </p>
                                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                             {genTimeline.map(item => (
@@ -531,7 +535,7 @@ export default function PersonProfilePage({ params }: Props) {
                                                             {item.fullNames}
                                                         </p>
                                                         <p style={{ fontSize: 11, color: item.isMe ? "#4CAF50" : "#BDBDBD", marginTop: 1 }}>
-                                                            Generation {item.genNum}{item.isMe ? " · You are here ✦" : ""}
+                                                            {t("me_generation_n")} {item.genNum}{item.isMe ? t("me_you_are_here") : ""}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -582,6 +586,7 @@ function InfoRow({ icon: Icon, label, children }: {
 }
 
 function RelativeCard({ rel, onClick }: { rel: Relative; onClick: () => void }) {
+    const { t } = useT()
     const [hovered, setHovered] = useState(false)
     const name    = [rel.related_person.first_name, rel.related_person.last_name].filter(Boolean).join(" ")
     const initial = rel.related_person.first_name?.[0]?.toUpperCase() ?? "?"
@@ -609,7 +614,7 @@ function RelativeCard({ rel, onClick }: { rel: Relative; onClick: () => void }) 
             </div>
             <div>
                 <p style={{ fontSize: 14, fontWeight: 600, color: "#1A1A2E" }}>{name}</p>
-                <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 2 }}>{relLabel(rel.relation_type)}</p>
+                <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 2 }}>{relLabel(rel.relation_type, t)}</p>
             </div>
         </div>
     )

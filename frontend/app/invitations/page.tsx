@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import AppSidebar from "@/components/AppSidebar"
 import { isAuthenticated } from "@/lib/auth"
+import { useT, TKey } from "@/lib/i18n"
+import { useBreakpoint } from "@/lib/useBreakpoint"
 import { getNotifications, markRead, Notification } from "@/services/notificationService"
 import { getInvitationPreview, acceptInvitation } from "@/services/invitationService"
 
@@ -45,16 +47,16 @@ const EMOJIS = ["🏡", "🌿", "🦅", "🌙", "🌸", "👨‍👩‍👧‍�
 function palette(idx: number) { return PALETTE[idx % PALETTE.length] }
 function emoji(idx: number) { return EMOJIS[idx % EMOJIS.length] }
 
-function formatAge(dateStr: string): string {
+function formatAge(dateStr: string, t: (k: TKey) => string): string {
     const d = new Date(dateStr)
     const diff = Date.now() - d.getTime()
     const h = diff / 3_600_000
-    if (h < 1) return "Just now"
-    if (h < 24) return `${Math.floor(h)} hours ago`
+    if (h < 1) return t("invitations_just_now")
+    if (h < 24) return `${Math.floor(h)} ${t("invitations_hours_ago")}`
     const days = Math.floor(h / 24)
-    if (days === 1) return "Yesterday"
-    if (days < 7) return `${days} days ago`
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+    if (days === 1) return t("invitations_yesterday")
+    if (days < 7) return `${days} ${t("invitations_days_ago")}`
+    if (days < 30) return `${Math.floor(days / 7)} ${t("invitations_weeks_ago")}`
     return d.toLocaleDateString()
 }
 
@@ -68,10 +70,12 @@ const STATUS_META: Record<InviteStatus, { label: string; bg: string; text: strin
 
 function StatusBadge({ status }: { status: InviteStatus }) {
     const m = STATUS_META[status]
+    const { t } = useT()
+    const labelKey = status === "pending" ? "invitations_pending_status" : status === "accepted" ? "invitations_accepted_status" : "invitations_declined_status"
     return (
         <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: m.bg, color: m.text, borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
             <m.Icon size={10} strokeWidth={3} />
-            {m.label}
+            {t(labelKey)}
         </div>
     )
 }
@@ -86,6 +90,7 @@ function InviteListItem({ inv, selected, onSelect, onQuickAccept, onQuickDecline
 }) {
     const [hovered, setHovered] = useState(false)
     const { bg, end } = palette(inv.colorIdx)
+    const { t } = useT()
 
     return (
         <div
@@ -119,7 +124,7 @@ function InviteListItem({ inv, selected, onSelect, onQuickAccept, onQuickDecline
                         <StatusBadge status={inv.status} />
                     </div>
                     <p style={{ fontSize: 12.5, color: "#777", marginBottom: 6 }}>
-                        By <span style={{ fontWeight: 600, color: "#555" }}>{inv.inviterName}</span>
+                        {t("invitations_by")} <span style={{ fontWeight: 600, color: "#555" }}>{inv.inviterName}</span>
                         {" · "}
                         <span style={{ background: "#F5F5F5", borderRadius: 4, padding: "1px 6px", fontSize: 11, fontWeight: 600, color: "#666" }}>
                             {inv.invitedAs}
@@ -128,7 +133,7 @@ function InviteListItem({ inv, selected, onSelect, onQuickAccept, onQuickDecline
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                             <Users size={12} color="#BDBDBD" />
-                            <span style={{ fontSize: 12, color: "#BDBDBD" }}>{inv.memberCount} members</span>
+                            <span style={{ fontSize: 12, color: "#BDBDBD" }}>{inv.memberCount} {t("invitations_members")}</span>
                         </div>
                         <span style={{ fontSize: 11, color: "#BDBDBD" }}>{inv.receivedAt}</span>
                     </div>
@@ -144,7 +149,7 @@ function InviteListItem({ inv, selected, onSelect, onQuickAccept, onQuickDecline
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                                 boxShadow: `0 3px 10px ${bg}40`,
                             }}>
-                                <Check size={12} strokeWidth={3} /> Accept
+                                <Check size={12} strokeWidth={3} /> {t("nav_accept")}
                             </button>
                             <button onClick={onQuickDecline} style={{
                                 padding: "7px 12px", background: "#FFF5F5", color: "#EF5350",
@@ -152,7 +157,7 @@ function InviteListItem({ inv, selected, onSelect, onQuickAccept, onQuickDecline
                                 fontSize: 12, fontWeight: 700, cursor: "pointer",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                             }}>
-                                <X size={12} strokeWidth={3} /> Decline
+                                <X size={12} strokeWidth={3} /> {t("nav_decline")}
                             </button>
                         </div>
                     )}
@@ -171,6 +176,7 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
     onGoToTree: () => void
 }) {
     const { bg, end } = palette(inv.colorIdx)
+    const { t } = useT()
     const isPending = inv.status === "pending"
     const isAccepted = inv.status === "accepted"
     const isDeclined = inv.status === "declined"
@@ -199,18 +205,18 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                             <h1 style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: -0.5 }}>{inv.familyName}</h1>
                             {!isPending && (
                                 <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                                    {isAccepted ? <><Check size={11} strokeWidth={3} /> Accepted</> : <><X size={11} strokeWidth={3} /> Declined</>}
+                                    {isAccepted ? <><Check size={11} strokeWidth={3} /> {t("invitations_accepted_status")}</> : <><X size={11} strokeWidth={3} /> {t("invitations_declined_status")}</>}
                                 </div>
                             )}
                         </div>
                         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.82)", lineHeight: 1.55, marginBottom: 18 }}>
-                            {inv.inviterName} invited you to join as <strong style={{ color: "#fff" }}>{inv.invitedAs}</strong>
+                            {inv.inviterName} {t("invitations_invited_you_as")} <strong style={{ color: "#fff" }}>{inv.invitedAs}</strong>
                         </p>
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                             {[
-                                { Icon: Users, label: `${inv.memberCount} Members` },
-                                { Icon: GitBranch, label: "Family Tree" },
-                                { Icon: Clock, label: `Received ${inv.receivedAt}` },
+                                { Icon: Users, label: `${inv.memberCount} ${t("invitations_members")}` },
+                                { Icon: GitBranch, label: t("invitations_family_tree") },
+                                { Icon: Clock, label: `${t("invitations_received")} ${inv.receivedAt}` },
                             ].map(({ Icon, label }) => (
                                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "6px 14px" }}>
                                     <Icon size={13} color="rgba(255,255,255,0.85)" />
@@ -238,7 +244,7 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                         <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 14, fontWeight: 700, color: "#1A1A2E" }}>{inv.inviterName}</p>
                             <p style={{ fontSize: 12, color: "#9E9E9E" }}>
-                                Invited you as <strong style={{ color: "#555" }}>{inv.invitedAs}</strong>
+                                {t("invitations_invited_as")} <strong style={{ color: "#555" }}>{inv.invitedAs}</strong>
                             </p>
                         </div>
                         <div style={{ background: "#F5F5F5", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#BDBDBD", fontWeight: 600 }}>
@@ -249,9 +255,9 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
 
                 {/* Two-col: what you get */}
                 <div style={{ background: "#fff", borderRadius: 18, padding: "22px 24px", border: "1px solid #F0F0F0", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 16 }}>What you get</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#BDBDBD", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 16 }}>{t("invitations_what_you_get")}</p>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        {["🌳 Interactive family tree", "📸 Family memories & photos", "🔔 Birthday reminders", "🧬 Relationship finder"].map(perk => (
+                        {[t("invitations_feature_tree"), t("invitations_feature_memories"), t("invitations_feature_reminders")].map(perk => (
                             <div key={perk} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${bg}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                     <Check size={11} color={bg} strokeWidth={3} />
@@ -267,7 +273,7 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#FFFDE7", borderRadius: 12, padding: "12px 18px", border: "1px solid #FFE082" }}>
                         <Shield size={16} color="#F9A825" style={{ flexShrink: 0 }} />
                         <p style={{ fontSize: 13, color: "#795548" }}>
-                            This invitation expires in <strong>5 days</strong>. Respond before it's gone.
+                            {t("invitations_expires")}
                         </p>
                     </div>
                 )}
@@ -286,7 +292,7 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                             onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
                             onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
                         >
-                            <Heart size={18} fill="white" strokeWidth={0} /> Accept Invitation <ArrowRight size={17} />
+                            <Heart size={18} fill="white" strokeWidth={0} /> {t("invitations_accept_invitation")} <ArrowRight size={17} />
                         </button>
                         <button onClick={onDecline} style={{
                             padding: "18px 28px", background: "#fff", color: "#BDBDBD",
@@ -298,7 +304,7 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#EF5350"; e.currentTarget.style.color = "#EF5350" }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E0E0E0"; e.currentTarget.style.color = "#BDBDBD" }}
                         >
-                            <X size={16} /> Decline
+                            <X size={16} /> {t("nav_decline")}
                         </button>
                     </div>
                 )}
@@ -308,14 +314,14 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                         <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #4CAF50, #2E7D32)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 6px 20px rgba(76,175,80,0.35)" }}>
                             <Check size={28} color="#fff" strokeWidth={3} />
                         </div>
-                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#2E7D32", marginBottom: 6 }}>You're a member!</h3>
-                        <p style={{ fontSize: 14, color: "#555", marginBottom: 20 }}>You joined {inv.familyName} {inv.receivedAt}.</p>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#2E7D32", marginBottom: 6 }}>{t("invitations_joined_title")}</h3>
+                        <p style={{ fontSize: 14, color: "#555", marginBottom: 20 }}>{t("invitations_joined_desc").replace("{name}", inv.familyName).replace("{time}", inv.receivedAt)}</p>
                         <button onClick={onGoToTree} style={{
                             padding: "13px 28px", background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
                             color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
                             display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
                         }}>
-                            <TreePine size={16} /> Open Family Tree
+                            <TreePine size={16} /> {t("invitations_open_tree")}
                         </button>
                     </div>
                 )}
@@ -323,12 +329,12 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
                 {isDeclined && (
                     <div style={{ background: "#FFF5F5", borderRadius: 18, padding: "28px 32px", border: "1px solid #FFCDD2", textAlign: "center" }}>
                         <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
-                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#C62828", marginBottom: 6 }}>Invitation Declined</h3>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#C62828", marginBottom: 6 }}>{t("invitations_declined_title")}</h3>
                         <p style={{ fontSize: 14, color: "#888", marginBottom: 20, lineHeight: 1.6 }}>
-                            You declined this invitation. {inv.inviterName} can send a new invite if you change your mind.
+                            {t("invitations_declined_desc").replace("{name}", inv.inviterName)}
                         </p>
                         <button style={{ padding: "11px 24px", background: "#fff", color: "#EF5350", border: "1.5px solid #FFCDD2", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
-                            <RefreshCw size={14} /> Request New Invite
+                            <RefreshCw size={14} /> {t("invitations_request_new")}
                         </button>
                     </div>
                 )}
@@ -340,12 +346,13 @@ function DetailPanel({ inv, onAccept, onDecline, onGoToTree }: {
 // ── Empty detail state ────────────────────────────────────────────────────────
 
 function EmptyDetail() {
+    const { t } = useT()
     return (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#FAFAFA", gap: 14, padding: 40 }}>
             <div style={{ width: 80, height: 80, borderRadius: 24, background: "#F0F4FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>✉️</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#BDBDBD" }}>Select an invitation</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#BDBDBD" }}>{t("invitations_select")}</h3>
             <p style={{ fontSize: 14, color: "#D0D0D0", textAlign: "center", maxWidth: 260, lineHeight: 1.6 }}>
-                Click any invitation on the left to see the full details here.
+                {t("invitations_select_desc")}
             </p>
         </div>
     )
@@ -360,31 +367,32 @@ function ConfirmModal({ action, onConfirm, onCancel }: {
 }) {
     if (!action) return null
     const { bg, end } = palette(action.inv.colorIdx)
+    const { t } = useT()
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onCancel}>
             <div style={{ background: "#fff", borderRadius: 24, padding: "40px 44px", maxWidth: 400, width: "100%", boxShadow: "0 32px 80px rgba(0,0,0,0.2)", textAlign: "center", animation: "fadeUp 0.22s ease both" }} onClick={e => e.stopPropagation()}>
                 {action.type === "accept" ? (
                     <>
                         <div style={{ fontSize: 52, marginBottom: 14 }}>{emoji(action.inv.colorIdx)}</div>
-                        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>Accept this invitation?</h2>
+                        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>{t("invitations_confirm_accept")}</h2>
                         <p style={{ fontSize: 14, color: "#888", lineHeight: 1.6, marginBottom: 28 }}>
-                            You'll join <strong>{action.inv.familyName}</strong> as <strong>{action.inv.invitedAs}</strong>.
+                            {t("invitations_confirm_join_desc").replace("{family}", action.inv.familyName).replace("{role}", action.inv.invitedAs)}
                         </p>
                         <div style={{ display: "flex", gap: 10 }}>
-                            <button onClick={onCancel} style={{ flex: 1, padding: "13px", background: "#F5F5F5", color: "#555", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                            <button onClick={onConfirm} style={{ flex: 1, padding: "13px", background: `linear-gradient(135deg, ${bg}, ${end})`, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Yes, Accept!</button>
+                            <button onClick={onCancel} style={{ flex: 1, padding: "13px", background: "#F5F5F5", color: "#555", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{t("cancel")}</button>
+                            <button onClick={onConfirm} style={{ flex: 1, padding: "13px", background: `linear-gradient(135deg, ${bg}, ${end})`, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{t("invitations_yes_accept")}</button>
                         </div>
                     </>
                 ) : (
                     <>
                         <div style={{ fontSize: 52, marginBottom: 14 }}>😔</div>
-                        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>Decline this invitation?</h2>
+                        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1A2E", marginBottom: 8 }}>{t("invitations_confirm_decline")}</h2>
                         <p style={{ fontSize: 14, color: "#888", lineHeight: 1.6, marginBottom: 28 }}>
-                            {action.inv.inviterName} can send you a new invite anytime.
+                            {t("invitations_confirm_decline_desc").replace("{name}", action.inv.inviterName)}
                         </p>
                         <div style={{ display: "flex", gap: 10 }}>
-                            <button onClick={onCancel} style={{ flex: 1, padding: "13px", background: "#F5F5F5", color: "#555", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Keep It</button>
-                            <button onClick={onConfirm} style={{ flex: 1, padding: "13px", background: "#FFEBEE", color: "#C62828", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Yes, Decline</button>
+                            <button onClick={onCancel} style={{ flex: 1, padding: "13px", background: "#F5F5F5", color: "#555", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{t("invitations_keep_it")}</button>
+                            <button onClick={onConfirm} style={{ flex: 1, padding: "13px", background: "#FFEBEE", color: "#C62828", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{t("invitations_yes_decline")}</button>
                         </div>
                     </>
                 )}
@@ -399,6 +407,8 @@ type TabKey = "all" | InviteStatus
 
 export default function InvitationsPage() {
     const router = useRouter()
+    const { t } = useT()
+    const { isMobile } = useBreakpoint()
     const [invites, setInvites] = useState<InviteData[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -454,7 +464,7 @@ export default function InvitationsPage() {
                         invitedAs,
                         memberCount,
                         status,
-                        receivedAt: formatAge(n.created_at),
+                        receivedAt: formatAge(n.created_at, t),
                         read: n.read,
                         colorIdx: idx,
                     } as InviteData
@@ -479,10 +489,10 @@ export default function InvitationsPage() {
     const declinedCount = invites.filter(i => i.status === "declined").length
 
     const TABS: { key: TabKey; label: string; count: number }[] = [
-        { key: "all",      label: "All",      count: invites.length },
-        { key: "pending",  label: "Pending",  count: pendingCount },
-        { key: "accepted", label: "Accepted", count: acceptedCount },
-        { key: "declined", label: "Declined", count: declinedCount },
+        { key: "all",      label: t("invitations_filter_all"),      count: invites.length },
+        { key: "pending",  label: t("invitations_filter_pending"),  count: pendingCount },
+        { key: "accepted", label: t("invitations_filter_accepted"), count: acceptedCount },
+        { key: "declined", label: t("invitations_filter_declined"), count: declinedCount },
     ]
 
     const filtered = activeTab === "all" ? invites : invites.filter(i => i.status === activeTab)
@@ -494,14 +504,14 @@ export default function InvitationsPage() {
             await markRead(inv.notifId)
         } catch { /* already member is OK */ }
         setInvites(prev => prev.map(i => i.notifId === inv.notifId ? { ...i, status: "accepted" } : i))
-        showToast(`🎉 You joined ${inv.familyName}!`)
+        showToast(t("invitations_toast_joined").replace("{name}", inv.familyName))
         setConfirm(null)
     }
 
     const doDecline = async (inv: InviteData) => {
         await markRead(inv.notifId).catch(() => {})
         setInvites(prev => prev.map(i => i.notifId === inv.notifId ? { ...i, status: "declined" } : i))
-        showToast("Invitation declined.")
+        showToast(t("invitations_toast_declined"))
         setConfirm(null)
     }
 
@@ -510,7 +520,7 @@ export default function InvitationsPage() {
         await Promise.allSettled(pending.map(i => acceptInvitation(i.token).catch(() => {})))
         await Promise.allSettled(pending.map(i => markRead(i.notifId).catch(() => {})))
         setInvites(prev => prev.map(i => i.status === "pending" ? { ...i, status: "accepted" } : i))
-        showToast(`🎉 Accepted ${pending.length} invitations!`)
+        showToast(t("invitations_toast_accepted_all").replace("{n}", String(pending.length)))
     }
 
     return (
@@ -521,7 +531,7 @@ export default function InvitationsPage() {
                 {/* Toast */}
                 {toast && (
                     <div style={{
-                        position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+                        position: "fixed", bottom: isMobile ? 80 : 28, left: "50%", transform: "translateX(-50%)",
                         background: "#1A1A2E", color: "#fff", borderRadius: 40, padding: "12px 24px",
                         fontSize: 14, fontWeight: 600, boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
                         zIndex: 9999, whiteSpace: "nowrap",
@@ -549,15 +559,15 @@ export default function InvitationsPage() {
                         </div>
                         <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>Invitations</h1>
+                                <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1A1A2E", letterSpacing: -0.5 }}>{t("invitations_title")}</h1>
                                 {pendingCount > 0 && (
                                     <div style={{ background: "#FF5252", color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 800, boxShadow: "0 2px 8px rgba(255,82,82,0.4)" }}>
-                                        {pendingCount} new
+                                        {pendingCount} {t("invitations_new_badge")}
                                     </div>
                                 )}
                             </div>
                             <p style={{ fontSize: 13, color: "#9E9E9E", marginTop: 2 }}>
-                                {pendingCount > 0 ? `${pendingCount} invitation${pendingCount > 1 ? "s" : ""} waiting for your response` : "All caught up!"}
+                                {pendingCount > 0 ? `${pendingCount} ${t("invitations_pending_banner")}` : t("invitations_all_clear")}
                             </p>
                         </div>
                     </div>
@@ -572,7 +582,7 @@ export default function InvitationsPage() {
                             onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
                             onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
                         >
-                            <CheckCheck size={16} /> Accept All ({pendingCount})
+                            <CheckCheck size={16} /> {t("invitations_accept_all")} ({pendingCount})
                         </button>
                     )}
                 </header>
@@ -610,13 +620,13 @@ export default function InvitationsPage() {
                             <div style={{ margin: "12px 14px 4px", background: "linear-gradient(135deg, #E8F5E9, #F1F8E9)", borderRadius: 12, padding: "11px 14px", border: "1px solid #C8E6C9", display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
                                 <Bell size={15} color="#4CAF50" style={{ flexShrink: 0 }} />
                                 <p style={{ fontSize: 12.5, color: "#2E7D32", fontWeight: 600 }}>
-                                    {pendingCount} invitation{pendingCount > 1 ? "s" : ""} waiting — don't leave them hanging!
+                                    {pendingCount} {t("invitations_pending_banner")}
                                 </p>
                             </div>
                         )}
 
                         {/* List */}
-                        <div style={{ flex: 1, overflowY: "auto" }}>
+                        <div style={{ flex: 1, overflowY: "auto", paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : undefined }}>
                             {loading ? (
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
                                     <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #E8F5E9", borderTopColor: "#4CAF50", animation: "spin 0.8s linear infinite" }} />
@@ -624,7 +634,7 @@ export default function InvitationsPage() {
                             ) : filtered.length === 0 ? (
                                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 10, padding: 32, textAlign: "center" }}>
                                     <MailOpen size={36} color="#E0E0E0" />
-                                    <p style={{ fontSize: 14, color: "#BDBDBD", fontWeight: 600 }}>No invitations here</p>
+                                    <p style={{ fontSize: 14, color: "#BDBDBD", fontWeight: 600 }}>{t("invitations_none_here")}</p>
                                 </div>
                             ) : (
                                 filtered.map(inv => (

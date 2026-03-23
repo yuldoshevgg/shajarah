@@ -59,11 +59,31 @@ export default function FamilyTree({ persons, parentChild, spouses, siblings = [
         setScale(1)
     }, [persons.length])
 
+    // ---- Non-passive native wheel & touch listeners (must be native to call preventDefault) ----
+    useEffect(() => {
+        const el = containerRef.current
+        if (!el) return
+
+        const wheelHandler = (e: WheelEvent) => {
+            e.preventDefault()
+            const delta = -e.deltaY * 0.001
+            setScale(s => Math.max(0.4, Math.min(2.5, s + delta)))
+        }
+        const touchMoveHandler = (e: TouchEvent) => {
+            if (e.touches.length >= 1) e.preventDefault()
+        }
+
+        el.addEventListener("wheel", wheelHandler, { passive: false })
+        el.addEventListener("touchmove", touchMoveHandler, { passive: false })
+        return () => {
+            el.removeEventListener("wheel", wheelHandler)
+            el.removeEventListener("touchmove", touchMoveHandler)
+        }
+    }, [])
+
     // ---- Mouse events ----
-    const onWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault()
-        const delta = -e.deltaY * 0.001
-        setScale(s => Math.max(0.4, Math.min(2.5, s + delta)))
+    const onWheel = useCallback((_e: React.WheelEvent) => {
+        // Handled by native listener above
     }, [])
 
     const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -99,7 +119,6 @@ export default function FamilyTree({ persons, parentChild, spouses, siblings = [
     }, [pan.x, pan.y, scale])
 
     const onTouchMove = useCallback((e: React.TouchEvent) => {
-        e.preventDefault()
         if (e.touches.length === 1 && touchRef.current) {
             const t = e.touches[0]
             setPan({
@@ -290,25 +309,6 @@ export default function FamilyTree({ persons, parentChild, spouses, siblings = [
                 })}
             </div>
 
-            {/* Hint — bottom left */}
-            <div
-                style={{
-                    position: "absolute",
-                    left: 24,
-                    bottom: 24,
-                    background: "rgba(255,255,255,0.85)",
-                    borderRadius: 10,
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    color: "#888",
-                    fontWeight: 500,
-                    backdropFilter: "blur(4px)",
-                    border: "1px solid rgba(0,0,0,0.05)",
-                    pointerEvents: "none",
-                }}
-            >
-                🖱️ Drag to pan · Scroll to zoom · Click a member to open profile
-            </div>
 
             {/* Zoom controls — bottom right */}
             <div
