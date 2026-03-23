@@ -3,9 +3,10 @@ import { apiFetch } from "@/lib/apiFetch"
 
 export interface Person {
     id: string
-    family_id: string
+    family_id: string | null
     first_name: string
     last_name: string
+    email?: string | null
     gender: string
     birth_date: string | null
     biography: string
@@ -14,6 +15,7 @@ export interface Person {
 
 export interface CreatePersonInput {
     family_id: string
+    email?: string
     first_name: string
     last_name: string
     gender: string
@@ -28,6 +30,7 @@ export interface PersonRelationshipView {
         id: string
         first_name: string
         last_name: string
+        gender: string
     }
 }
 

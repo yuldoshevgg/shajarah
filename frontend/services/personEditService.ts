@@ -5,6 +5,7 @@ import { Person } from "./personService"
 export interface UpdatePersonInput {
     first_name?: string
     last_name?: string
+    email?: string
     gender?: string
     birth_date?: string
     biography?: string

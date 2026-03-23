@@ -2,16 +2,19 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Bell, Plus, Users, GitBranch } from "lucide-react"
+import {
+    Search, Bell, Plus, Users, GitBranch,
+    X, User, UserPlus, Check, Send, Mail, ChevronRight,
+} from "lucide-react"
 import API_BASE from "../../../services/api"
-import { createPerson, getPersons, Person } from "../../../services/personService"
+import { createPerson } from "../../../services/personService"
 import { createRelationship } from "../../../services/relationshipService"
+import { inviteMember } from "../../../services/invitationService"
 import { apiFetch } from "../../../lib/apiFetch"
 import { getPersonId } from "../../../lib/auth"
 import FamilyTree from "../../../components/FamilyTree"
 import { PersonCardData } from "../../../components/PersonCard"
 import { computeKinship } from "../../../lib/kinship"
-import { useT } from "../../../lib/i18n"
 
 interface Props {
     params: Promise<{ id: string }>
@@ -31,6 +34,7 @@ interface GenealogyTree {
     persons: GenealogyPerson[]
     parent_child: { parent_id: string; child_id: string }[]
     spouses: { person1_id: string; person2_id: string }[]
+    siblings: { person1_id: string; person2_id: string }[]
 }
 
 interface FamilyInfo {
@@ -38,46 +42,670 @@ interface FamilyInfo {
     name: string
 }
 
-const RELATION_TYPES = ["parent", "child", "spouse", "sibling", "father", "mother"]
+// ─── Relationship types ────────────────────────────────────────────────────────
+
+interface RelType {
+    id: string
+    label: string
+    emoji: string
+    description: string
+}
+
+const RELATIONSHIP_TYPES: RelType[] = [
+    { id: "parent",  label: "Parent",  emoji: "👴", description: "Father or mother of this person" },
+    { id: "child",   label: "Child",   emoji: "👶", description: "Son or daughter of this person" },
+    { id: "sibling", label: "Sibling", emoji: "👫", description: "Brother or sister" },
+    { id: "spouse",  label: "Spouse",  emoji: "💍", description: "Husband or wife" },
+]
+
+
+// ─── AddRelativePanel ──────────────────────────────────────────────────────────
+
+function AddRelativePanel({
+    anchor,
+    familyId,
+    existingPersons,
+    onClose,
+    onAdded,
+}: {
+    anchor: GenealogyPerson
+    familyId: string
+    existingPersons: GenealogyPerson[]
+    onClose: () => void
+    onAdded: (name: string) => void
+}) {
+    const [mode,       setMode]       = useState<"new" | "existing">("new")
+    const [relType,    setRelType]    = useState("")
+    // new-person fields
+    const [firstName,  setFirstName]  = useState("")
+    const [lastName,   setLastName]   = useState("")
+    const [gender,     setGender]     = useState<"male" | "female" | "">("")
+    const [email,      setEmail]      = useState("")
+    // existing-person fields
+    const [personSearch, setPersonSearch] = useState("")
+    const [selectedId,   setSelectedId]   = useState<string | null>(null)
+    const [submitting, setSubmitting] = useState(false)
+    const [error,      setError]      = useState("")
+    const [done,       setDone]       = useState(false)
+    const [addedName,  setAddedName]  = useState("")
+
+    const candidates = existingPersons.filter(p => p.id !== anchor.id)
+    const filtered = personSearch.trim()
+        ? candidates.filter(p =>
+            `${p.first_name} ${p.last_name}`.toLowerCase().includes(personSearch.toLowerCase()))
+        : candidates
+
+    const canSubmitNew      = relType && firstName.trim() && lastName.trim() && gender
+    const canSubmitExisting = relType && selectedId
+
+    const applyRelationship = async (targetId: string) => {
+        const p1 = relType === "parent" ? targetId   : anchor.id
+        const p2 = relType === "parent" ? anchor.id  : targetId
+        const rel = (relType === "parent" || relType === "child") ? "parent" : relType
+        await createRelationship({ person1_id: p1, person2_id: p2, relation_type: rel })
+    }
+
+    const handleSubmit = async () => {
+        if (submitting) return
+        if (mode === "existing" && !canSubmitExisting) return
+        if (mode === "new" && !canSubmitNew) return
+        setSubmitting(true)
+        setError("")
+        try {
+            if (mode === "existing") {
+                await applyRelationship(selectedId!)
+                const person = existingPersons.find(p => p.id === selectedId)
+                const name = [person?.first_name, person?.last_name].filter(Boolean).join(" ")
+                setAddedName(name)
+                setDone(true)
+                setTimeout(() => onAdded(name), 1400)
+            } else {
+                const newPerson = await createPerson({
+                    family_id: familyId,
+                    first_name: firstName.trim(),
+                    last_name: lastName.trim(),
+                    gender: gender as string,
+                    ...(email.trim() ? { email: email.trim() } : {}),
+                })
+                await applyRelationship(newPerson.id)
+                if (email.trim()) {
+                    inviteMember(familyId, email.trim(), "viewer").catch(() => {})
+                }
+                const name = `${firstName} ${lastName}`.trim()
+                setAddedName(name)
+                setDone(true)
+                setTimeout(() => onAdded(name), 1400)
+            }
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : "Failed to add relative")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    const anchorName = [anchor.first_name, anchor.last_name].filter(Boolean).join(" ")
+
+    return (
+        <>
+            <div
+                onClick={onClose}
+                style={{
+                    position: "fixed", inset: 0, zIndex: 100,
+                    background: "rgba(0,0,0,0.18)",
+                    backdropFilter: "blur(2px)",
+                    animation: "panelFadeIn 0.2s ease both",
+                }}
+            />
+            <div style={{
+                position: "fixed", top: 0, right: 0, bottom: 0,
+                width: 420, zIndex: 101,
+                background: "#fff",
+                boxShadow: "-8px 0 40px rgba(0,0,0,0.14)",
+                display: "flex", flexDirection: "column",
+                animation: "slideInRight 0.26s cubic-bezier(0.32,0.72,0,1) both",
+                overflow: "hidden",
+            }}>
+                {/* Header */}
+                <div style={{
+                    padding: "20px 24px", flexShrink: 0,
+                    borderBottom: "1px solid #F0F0F0",
+                    display: "flex", alignItems: "center", gap: 12,
+                }}>
+                    <div style={{
+                        width: 40, height: 40, borderRadius: 12,
+                        background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                    }}>
+                        <UserPlus size={18} color="#fff" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1A1A2E" }}>Add Relative</h2>
+                        <p style={{ fontSize: 12, color: "#9E9E9E", marginTop: 1 }}>
+                            Connected to <strong style={{ color: "#4CAF50" }}>{anchor.first_name}</strong>
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            width: 34, height: 34, borderRadius: 9,
+                            background: "#F5F5F5", border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            flexShrink: 0, transition: "background 0.15s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#EBEBEB")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
+                    >
+                        <X size={16} color="#555" />
+                    </button>
+                </div>
+
+                {/* Anchor strip */}
+                <div style={{
+                    padding: "14px 24px",
+                    background: "linear-gradient(135deg, #F0FFF0, #E8F5E9)",
+                    borderBottom: "1px solid #E0F0E0",
+                    display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
+                }}>
+                    {anchor.photo_url ? (
+                        <img
+                            src={`${API_BASE}${anchor.photo_url}`}
+                            alt={anchor.first_name}
+                            style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: "2.5px solid #A5D6A7" }}
+                        />
+                    ) : (
+                        <div style={{
+                            width: 44, height: 44, borderRadius: "50%",
+                            background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 20, fontWeight: 700, color: "#fff",
+                        }}>
+                            {anchor.first_name[0]}
+                        </div>
+                    )}
+                    <div>
+                        <p style={{ fontSize: 13.5, fontWeight: 800, color: "#1A1A2E" }}>{anchorName}</p>
+                        <p style={{ fontSize: 11.5, color: "#4CAF50", fontWeight: 600 }}>
+                            {anchor.birth_date ? `b. ${anchor.birth_date.slice(0, 4)}` : "Family member"}
+                        </p>
+                    </div>
+                    <div style={{
+                        marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
+                        fontSize: 11, color: "#4CAF50", fontWeight: 700,
+                    }}>
+                        Anchor <ChevronRight size={12} />
+                    </div>
+                </div>
+
+                {/* Scrollable body */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+                    {done ? (
+                        <div style={{
+                            display: "flex", flexDirection: "column", alignItems: "center",
+                            justifyContent: "center", height: "100%", textAlign: "center", gap: 16,
+                        }}>
+                            <div style={{
+                                width: 72, height: 72, borderRadius: "50%",
+                                background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                boxShadow: "0 8px 24px rgba(76,175,80,0.4)",
+                                animation: "popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both",
+                            }}>
+                                <Check size={32} color="#fff" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: "#1A1A2E", marginBottom: 6 }}>
+                                    {addedName} added!
+                                </p>
+                                <p style={{ fontSize: 13, color: "#888", lineHeight: 1.55 }}>
+                                    {addedName} has been added as {anchor.first_name}&apos;s{" "}
+                                    {RELATIONSHIP_TYPES.find(r => r.id === relType)?.label.toLowerCase() ?? "relative"}.
+                                    {email && " An invitation has been sent."}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+
+                            {/* Mode toggle */}
+                            <div style={{ display: "flex", background: "#F0F0F0", borderRadius: 12, padding: 4 }}>
+                                {(["new", "existing"] as const).map(m => (
+                                    <button key={m} onClick={() => setMode(m)} style={{
+                                        flex: 1, padding: "10px 8px", borderRadius: 9, border: "none",
+                                        background: mode === m ? "#fff" : "transparent",
+                                        color: mode === m ? "#1A1A2E" : "#888",
+                                        fontWeight: mode === m ? 700 : 500, fontSize: 13, cursor: "pointer",
+                                        boxShadow: mode === m ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+                                        transition: "all 0.2s",
+                                    }}>
+                                        {m === "new" ? "➕ New Person" : "🔍 Existing Person"}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* ① Relationship type */}
+                            <div>
+                                <p style={{
+                                    fontSize: 11.5, fontWeight: 700, color: "#BDBDBD",
+                                    letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 12,
+                                }}>
+                                    ① Relationship to {anchor.first_name}
+                                </p>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+                                    {RELATIONSHIP_TYPES.map(rt => {
+                                        const sel = relType === rt.id
+                                        return (
+                                            <button
+                                                key={rt.id}
+                                                onClick={() => setRelType(rt.id)}
+                                                style={{
+                                                    display: "flex", flexDirection: "column", gap: 6,
+                                                    padding: "13px 14px",
+                                                    background: sel ? "#E8F5E9" : "#FAFAFA",
+                                                    border: `1.5px solid ${sel ? "#4CAF50" : "#EEEEEE"}`,
+                                                    borderRadius: 13, cursor: "pointer", textAlign: "left",
+                                                    transition: "all 0.14s", position: "relative",
+                                                }}
+                                                onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = "#C8E6C9"; e.currentTarget.style.background = "#F5FBF5" } }}
+                                                onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = "#EEEEEE"; e.currentTarget.style.background = "#FAFAFA" } }}
+                                            >
+                                                {sel && (
+                                                    <div style={{
+                                                        position: "absolute", top: 8, right: 8,
+                                                        width: 17, height: 17, borderRadius: "50%",
+                                                        background: "#4CAF50",
+                                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                                    }}>
+                                                        <Check size={9} color="#fff" strokeWidth={3} />
+                                                    </div>
+                                                )}
+                                                <span style={{ fontSize: 24 }}>{rt.emoji}</span>
+                                                <div>
+                                                    <p style={{ fontSize: 13, fontWeight: 700, color: sel ? "#2E7D32" : "#1A1A2E" }}>{rt.label}</p>
+                                                    <p style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2, lineHeight: 1.4 }}>{rt.description}</p>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* ② Person details */}
+                            <div>
+                                <p style={{
+                                    fontSize: 11.5, fontWeight: 700, color: "#BDBDBD",
+                                    letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 12,
+                                }}>
+                                    ② Their details
+                                </p>
+
+                                {mode === "existing" ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                        {/* Search */}
+                                        <input
+                                            type="text"
+                                            value={personSearch}
+                                            onChange={e => setPersonSearch(e.target.value)}
+                                            placeholder="Search by name…"
+                                            style={{
+                                                width: "100%", padding: "11px 13px",
+                                                background: "#F7F5F0", border: "1.5px solid #EBEBEB",
+                                                borderRadius: 11, fontSize: 14, color: "#1A1A2E",
+                                                outline: "none", boxSizing: "border-box",
+                                            }}
+                                            onFocus={e => (e.target.style.borderColor = "#A5D6A7")}
+                                            onBlur={e => (e.target.style.borderColor = "#EBEBEB")}
+                                        />
+                                        {/* Person list */}
+                                        <div style={{
+                                            maxHeight: 240, overflowY: "auto",
+                                            border: "1.5px solid #EBEBEB", borderRadius: 11,
+                                            background: "#FAFAFA",
+                                        }}>
+                                            {filtered.length === 0 ? (
+                                                <p style={{ fontSize: 13, color: "#AAAAAA", textAlign: "center", padding: "20px 0" }}>
+                                                    No matching people
+                                                </p>
+                                            ) : filtered.map(p => {
+                                                const sel = selectedId === p.id
+                                                const fullName = [p.first_name, p.last_name].filter(Boolean).join(" ")
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        onClick={() => setSelectedId(p.id)}
+                                                        style={{
+                                                            width: "100%", display: "flex", alignItems: "center", gap: 10,
+                                                            padding: "10px 14px", background: sel ? "#E8F5E9" : "none",
+                                                            border: "none", borderBottom: "1px solid #F0F0F0",
+                                                            cursor: "pointer", textAlign: "left", transition: "background 0.12s",
+                                                        }}
+                                                        onMouseEnter={e => { if (!sel) e.currentTarget.style.background = "#F5FBF5" }}
+                                                        onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "none" }}
+                                                    >
+                                                        <div style={{
+                                                            width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                                                            background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                                            fontSize: 14, fontWeight: 700, color: "#fff",
+                                                        }}>
+                                                            {p.first_name[0]}
+                                                        </div>
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <p style={{ fontSize: 13.5, fontWeight: sel ? 700 : 500, color: sel ? "#2E7D32" : "#1A1A2E" }}>{fullName}</p>
+                                                            <p style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                                                {p.gender} {p.birth_date ? `· b. ${p.birth_date.slice(0, 4)}` : ""}
+                                                            </p>
+                                                        </div>
+                                                        {sel && <Check size={16} color="#4CAF50" strokeWidth={2.5} />}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                        {error && (
+                                            <p style={{ fontSize: 13, color: "#F44336", textAlign: "center" }}>{error}</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+                                        {/* Name */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                            {[
+                                                { label: "First Name", val: firstName, set: setFirstName, ph: "e.g. Layla" },
+                                                { label: "Last Name",  val: lastName,  set: setLastName,  ph: "e.g. Hassan" },
+                                            ].map(f => (
+                                                <div key={f.label}>
+                                                    <label style={{
+                                                        fontSize: 11, fontWeight: 700, color: "#BDBDBD",
+                                                        letterSpacing: 0.5, textTransform: "uppercase",
+                                                        display: "block", marginBottom: 6,
+                                                    }}>
+                                                        {f.label} <span style={{ color: "#EF5350" }}>*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={f.val}
+                                                        onChange={e => f.set(e.target.value)}
+                                                        placeholder={f.ph}
+                                                        style={{
+                                                            width: "100%", padding: "11px 13px",
+                                                            background: "#F7F5F0", border: "1.5px solid #EBEBEB",
+                                                            borderRadius: 11, fontSize: 14, color: "#1A1A2E",
+                                                            outline: "none", boxSizing: "border-box",
+                                                        }}
+                                                        onFocus={e => (e.target.style.borderColor = "#A5D6A7")}
+                                                        onBlur={e => (e.target.style.borderColor = "#EBEBEB")}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Gender */}
+                                        <div>
+                                            <label style={{
+                                                fontSize: 11, fontWeight: 700, color: "#BDBDBD",
+                                                letterSpacing: 0.5, textTransform: "uppercase",
+                                                display: "block", marginBottom: 6,
+                                            }}>
+                                                Gender <span style={{ color: "#EF5350" }}>*</span>
+                                            </label>
+                                            <div style={{ display: "flex", gap: 8 }}>
+                                                {[
+                                                    { val: "male",   label: "Male",   emoji: "👨" },
+                                                    { val: "female", label: "Female", emoji: "👩" },
+                                                ].map(opt => (
+                                                    <button
+                                                        key={opt.val}
+                                                        onClick={() => setGender(opt.val as "male" | "female")}
+                                                        style={{
+                                                            flex: 1, padding: "11px",
+                                                            background: gender === opt.val ? "#E8F5E9" : "#FAFAFA",
+                                                            border: `1.5px solid ${gender === opt.val ? "#4CAF50" : "#EEEEEE"}`,
+                                                            borderRadius: 11, cursor: "pointer",
+                                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                                                            fontSize: 13, fontWeight: gender === opt.val ? 700 : 500,
+                                                            color: gender === opt.val ? "#2E7D32" : "#888",
+                                                            transition: "all 0.14s",
+                                                        }}
+                                                    >
+                                                        <span style={{ fontSize: 18 }}>{opt.emoji}</span> {opt.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Email */}
+                                        <div>
+                                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                                                <label style={{
+                                                    fontSize: 11, fontWeight: 700, color: "#BDBDBD",
+                                                    letterSpacing: 0.5, textTransform: "uppercase",
+                                                }}>
+                                                    Email
+                                                </label>
+                                                <span style={{ fontSize: 10.5, color: "#BDBDBD", background: "#F5F5F5", borderRadius: 5, padding: "2px 7px" }}>
+                                                    optional — sends an invite
+                                                </span>
+                                            </div>
+                                            <div style={{
+                                                display: "flex", alignItems: "center", gap: 9,
+                                                background: "#F7F5F0", border: `1.5px solid ${email ? "#A5D6A7" : "#EBEBEB"}`,
+                                                borderRadius: 11, padding: "11px 13px",
+                                            }}>
+                                                <Mail size={15} color={email ? "#4CAF50" : "#C0C0C0"} />
+                                                <input
+                                                    type="email"
+                                                    value={email}
+                                                    onChange={e => setEmail(e.target.value)}
+                                                    placeholder="their@email.com"
+                                                    style={{ flex: 1, border: "none", background: "none", outline: "none", fontSize: 14, color: "#1A1A2E" }}
+                                                />
+                                            </div>
+                                            {email && (
+                                                <p style={{ fontSize: 11, color: "#4CAF50", fontWeight: 600, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
+                                                    <Send size={10} /> They&apos;ll receive an invitation email
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {error && (
+                                            <p style={{ fontSize: 13, color: "#F44336", textAlign: "center" }}>{error}</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                {!done && (
+                    <div style={{
+                        padding: "16px 24px",
+                        borderTop: "1px solid #F0F0F0",
+                        flexShrink: 0,
+                        display: "flex", gap: 10,
+                    }}>
+                        <button
+                            onClick={onClose}
+                            style={{
+                                padding: "13px 20px",
+                                background: "#F5F5F5", color: "#888",
+                                border: "none", borderRadius: 12,
+                                fontSize: 14, fontWeight: 600, cursor: "pointer",
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!(mode === "new" ? canSubmitNew : canSubmitExisting) || submitting}
+                            style={{
+                                flex: 1, padding: "13px",
+                                background: (mode === "new" ? canSubmitNew : canSubmitExisting) && !submitting ? "linear-gradient(135deg, #4CAF50, #2E7D32)" : "#E0E0E0",
+                                color: (mode === "new" ? canSubmitNew : canSubmitExisting) && !submitting ? "#fff" : "#AAAAAA",
+                                border: "none", borderRadius: 12,
+                                fontSize: 14, fontWeight: 800,
+                                cursor: (mode === "new" ? canSubmitNew : canSubmitExisting) && !submitting ? "pointer" : "not-allowed",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                                boxShadow: (mode === "new" ? canSubmitNew : canSubmitExisting) && !submitting ? "0 4px 14px rgba(76,175,80,0.3)" : "none",
+                                transition: "all 0.2s",
+                            }}
+                        >
+                            {submitting ? (
+                                <>
+                                    <div style={{
+                                        width: 15, height: 15, borderRadius: "50%",
+                                        border: "2px solid rgba(255,255,255,0.3)",
+                                        borderTopColor: "#fff",
+                                        animation: "spin 0.7s linear infinite",
+                                    }} />
+                                    Adding…
+                                </>
+                            ) : mode === "existing" ? (
+                                <><UserPlus size={15} /> Add {selectedId ? (existingPersons.find(p => p.id === selectedId)?.first_name ?? "Person") : "Person"}</>
+                            ) : (
+                                <><UserPlus size={15} /> Add {firstName || "Person"}</>
+                            )}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </>
+    )
+}
+
+// ─── NodeContextMenu ───────────────────────────────────────────────────────────
+
+function NodeContextMenu({
+    person,
+    pos,
+    selfId,
+    onViewProfile,
+    onAddRelative,
+    onClose,
+}: {
+    person: GenealogyPerson
+    pos: { x: number; y: number }
+    selfId: string | null
+    onViewProfile: () => void
+    onAddRelative: () => void
+    onClose: () => void
+}) {
+    const fullName = [person.first_name, person.last_name].filter(Boolean).join(" ")
+    return (
+        <>
+            <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200 }} />
+            <div style={{
+                position: "fixed",
+                left: pos.x,
+                top: pos.y,
+                transform: "translate(-50%, calc(-100% - 14px))",
+                zIndex: 201,
+                background: "#fff",
+                borderRadius: 16,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                border: "1px solid rgba(0,0,0,0.07)",
+                minWidth: 200,
+                overflow: "hidden",
+                animation: "ctxPopUp 0.18s cubic-bezier(0.34,1.56,0.64,1) both",
+            }}>
+                {/* Person header */}
+                <div style={{
+                    padding: "12px 16px",
+                    background: "linear-gradient(135deg, #F0FFF0, #E8F5E9)",
+                    borderBottom: "1px solid #E0F0E0",
+                    display: "flex", alignItems: "center", gap: 10,
+                }}>
+                    <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 15, fontWeight: 700, color: "#fff", flexShrink: 0,
+                    }}>
+                        {person.first_name[0]}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13.5, fontWeight: 800, color: "#1A1A2E", whiteSpace: "nowrap" }}>{fullName}</p>
+                        {person.birth_date && (
+                            <p style={{ fontSize: 11, color: "#4CAF50", fontWeight: 600 }}>b. {person.birth_date.slice(0, 4)}</p>
+                        )}
+                    </div>
+                </div>
+                {/* Actions */}
+                <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 2 }}>
+                    <button
+                        onClick={onViewProfile}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 12px", background: "none", border: "none",
+                            borderRadius: 10, cursor: "pointer", width: "100%", textAlign: "left",
+                            fontSize: 13.5, fontWeight: 600, color: "#1A1A2E",
+                            transition: "background 0.13s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    >
+                        <User size={15} color="#555" />
+                        {person.id === selfId ? "My Profile" : "View Profile"}
+                        <ChevronRight size={13} color="#CCCCCC" style={{ marginLeft: "auto" }} />
+                    </button>
+                    <button
+                        onClick={onAddRelative}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 12px", background: "none", border: "none",
+                            borderRadius: 10, cursor: "pointer", width: "100%", textAlign: "left",
+                            fontSize: 13.5, fontWeight: 600, color: "#2E7D32",
+                            transition: "background 0.13s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F0FFF0")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    >
+                        <UserPlus size={15} color="#4CAF50" />
+                        Add Relative
+                        <ChevronRight size={13} color="#CCCCCC" style={{ marginLeft: "auto" }} />
+                    </button>
+                </div>
+            </div>
+        </>
+    )
+}
+
+// ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FamilyTreePage({ params }: Props) {
     const router = useRouter()
     const { id: familyId } = use(params)
-    const { t } = useT()
 
-    const [tree, setTree] = useState<GenealogyTree>({ persons: [], parent_child: [], spouses: [] })
-    const [persons, setPersons] = useState<Person[]>([])
+    const [tree, setTree] = useState<GenealogyTree>({ persons: [], parent_child: [], spouses: [], siblings: [] })
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [search, setSearch] = useState("")
     const [searchOpen, setSearchOpen] = useState(false)
-    const [treeMode, setTreeMode] = useState<"family" | "ancestors" | "descendants">("family")
     const [familyInfo, setFamilyInfo] = useState<FamilyInfo | null>(null)
     const [generationCount, setGenerationCount] = useState(0)
 
-    // Add Person form
-    const [showPersonForm, setShowPersonForm] = useState(false)
-    const [firstName, setFirstName] = useState("")
-    const [lastName, setLastName] = useState("")
-    const [gender, setGender] = useState("male")
-    const [birthDate, setBirthDate] = useState("")
-    const [biography, setBiography] = useState("")
-    const [personError, setPersonError] = useState("")
 
-    // Add Relationship form
-    const [showRelForm, setShowRelForm] = useState(false)
-    const [person1Id, setPerson1Id] = useState("")
-    const [person2Id, setPerson2Id] = useState("")
-    const [relationType, setRelationType] = useState(RELATION_TYPES[0])
-    const [relError, setRelError] = useState("")
+    // Add relative panel
+    const [addAnchor, setAddAnchor] = useState<GenealogyPerson | null>(null)
 
-    const loadFamilyTree = useCallback((focusId?: string | null) => {
+    // Context menu (click on card)
+    const [contextPersonId, setContextPersonId] = useState<string | null>(null)
+    const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
+    const lastClickPos = useRef({ x: 0, y: 0 })
+
+    // Toast
+    const [toast, setToast] = useState<string | null>(null)
+    const showToast = (msg: string) => {
+        setToast(msg)
+        setTimeout(() => setToast(null), 2600)
+    }
+
+    const loadFamilyTree = useCallback(() => {
         apiFetch(`${API_BASE}/families/${familyId}/tree`)
             .then(r => r.json())
             .then((data: GenealogyTree) => {
-                setTreeMode("family")
                 setTree(data)
-                if (focusId) setSelectedId(focusId)
-                // Compute generation count from parent-child depth
                 const childIds = new Set(data.parent_child.map(r => r.child_id))
                 const roots = data.persons.filter(p => !childIds.has(p.id))
                 let maxDepth = 0
@@ -94,91 +722,16 @@ export default function FamilyTreePage({ params }: Props) {
 
     useEffect(() => {
         loadFamilyTree()
-        getPersons(familyId).then(setPersons).catch(() => { })
-        // Load family name
         apiFetch(`${API_BASE}/families/${familyId}`)
             .then(r => r.json())
             .then((data: FamilyInfo) => setFamilyInfo(data))
-            .catch(() => { })
-    }, [familyId])
+            .catch(() => {})
+    }, [familyId, loadFamilyTree])
 
-    const handleAncestorMode = async () => {
-        if (!selectedId) return
-        try {
-            const res = await apiFetch(`${API_BASE}/persons/${selectedId}/ancestors`)
-            const data: GenealogyTree = await res.json()
-            setTreeMode("ancestors")
-            setTree(data)
-        } catch (e) { console.error(e) }
-    }
+    // Resolve own person ID client-side (localStorage unavailable during SSR)
+    const [selfId, setSelfId] = useState<string | null>(null)
+    useEffect(() => { setSelfId(getPersonId()) }, [])
 
-    const handleDescendantMode = async () => {
-        if (!selectedId) return
-        try {
-            const res = await apiFetch(`${API_BASE}/persons/${selectedId}/descendants`)
-            const data: GenealogyTree = await res.json()
-            setTreeMode("descendants")
-            setTree(data)
-        } catch (e) { console.error(e) }
-    }
-
-    const handleShowChildren = async () => {
-        if (!selectedId) return
-        try {
-            const res = await apiFetch(`${API_BASE}/persons/${selectedId}/children`)
-            const data: { children: GenealogyPerson[] } = await res.json()
-            const newKids = data.children.filter(c => !tree.persons.find(p => p.id === c.id))
-            if (newKids.length === 0) return
-            setTree(t => ({
-                persons: [...t.persons, ...newKids],
-                parent_child: [...t.parent_child, ...newKids.map(c => ({ parent_id: selectedId, child_id: c.id }))],
-                spouses: t.spouses,
-            }))
-        } catch (e) { console.error(e) }
-    }
-
-    const handleSearch = (v: string) => {
-        setSearch(v)
-        if (!v.trim()) return
-        const match = tree.persons.find(p =>
-            `${p.first_name} ${p.last_name}`.toLowerCase().includes(v.toLowerCase())
-        )
-        if (match) setSelectedId(match.id)
-    }
-
-    const resetPersonForm = () => {
-        setFirstName(""); setLastName(""); setGender("male")
-        setBirthDate(""); setBiography(""); setPersonError("")
-        setShowPersonForm(false)
-    }
-    const resetRelForm = () => {
-        setPerson1Id(""); setPerson2Id(""); setRelationType(RELATION_TYPES[0])
-        setRelError(""); setShowRelForm(false)
-    }
-
-    const handleCreatePerson = async () => {
-        setPersonError("")
-        try {
-            await createPerson({ family_id: familyId, first_name: firstName, last_name: lastName, gender, birth_date: birthDate || undefined, biography: biography || undefined })
-            resetPersonForm()
-            loadFamilyTree(selectedId)
-            getPersons(familyId).then(setPersons).catch(() => { })
-        } catch { setPersonError("Failed to create person") }
-    }
-
-    const handleCreateRelationship = async () => {
-        setRelError("")
-        if (!person1Id || !person2Id) { setRelError("Select both persons"); return }
-        if (person1Id === person2Id) { setRelError("Select two different persons"); return }
-        try {
-            await createRelationship({ person1_id: person1Id, person2_id: person2Id, relation_type: relationType })
-            resetRelForm()
-            loadFamilyTree(selectedId)
-        } catch { setRelError("Failed to create relationship") }
-    }
-
-    // Compute kinship labels
-    const selfId = getPersonId()
     const kinshipMap = computeKinship(
         tree.persons.map(p => ({ id: p.id, gender: p.gender })),
         tree.parent_child.map(r => ({ parentId: r.parent_id, childId: r.child_id })),
@@ -199,20 +752,32 @@ export default function FamilyTreePage({ params }: Props) {
         }
     }
 
-    const selectedPerson = tree.persons.find(p => p.id === selectedId)
-    const selectedName = selectedPerson
-        ? [selectedPerson.first_name, selectedPerson.last_name].filter(Boolean).join(" ")
-        : null
-    const isAltMode = treeMode !== "family"
-    const showForm = showPersonForm || showRelForm
+    const handleSearch = (v: string) => {
+        setSearch(v)
+        if (!v.trim()) return
+        const match = tree.persons.find(p =>
+            `${p.first_name} ${p.last_name}`.toLowerCase().includes(v.toLowerCase())
+        )
+        if (match) setSelectedId(match.id)
+    }
 
-    const inputCls = "border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white text-gray-900 outline-none focus:ring-2 focus:ring-green-300 w-full"
-
-    const familyTitle = familyInfo ? `${familyInfo.name}` : "Family Tree"
     const memberCount = tree.persons.length
+    const familyTitle = familyInfo ? familyInfo.name : "Family Tree"
 
     return (
         <div className="flex flex-col" style={{ height: "100vh" }}>
+
+            {/* Toast */}
+            {toast && (
+                <div style={{
+                    position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+                    background: "#1A1A2E", color: "#fff", borderRadius: 40, padding: "11px 22px",
+                    fontSize: 13.5, fontWeight: 600, boxShadow: "0 8px 28px rgba(0,0,0,0.22)",
+                    zIndex: 9999, whiteSpace: "nowrap", animation: "toastFadeUp 0.22s ease both",
+                }}>
+                    {toast}
+                </div>
+            )}
 
             {/* ── Header ── */}
             <header
@@ -236,11 +801,14 @@ export default function FamilyTreePage({ params }: Props) {
                 </div>
 
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    {/* Search */}
                     {searchOpen ? (
                         <input
                             autoFocus
-                            style={{ padding: "10px 14px", background: "#F5F5F5", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#333", outline: "none", width: 180 }}
+                            style={{
+                                padding: "10px 14px", background: "#F5F5F5", border: "none",
+                                borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#333",
+                                outline: "none", width: 180,
+                            }}
                             placeholder="Search member…"
                             value={search}
                             onChange={e => handleSearch(e.target.value)}
@@ -249,98 +817,108 @@ export default function FamilyTreePage({ params }: Props) {
                     ) : (
                         <button
                             onClick={() => setSearchOpen(true)}
-                            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", background: "#F5F5F5", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#555" }}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 7,
+                                padding: "10px 18px", background: "#F5F5F5",
+                                border: "none", borderRadius: 10, cursor: "pointer",
+                                fontSize: 13, fontWeight: 600, color: "#555",
+                            }}
                         >
                             <Search size={15} /> Search
                         </button>
                     )}
 
-                    {/* Bell */}
                     <button
-                        style={{ width: 40, height: 40, borderRadius: 10, background: "#FFF8E1", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
+                        onClick={() => router.push("/reminders")}
+                        style={{
+                            width: 40, height: 40, borderRadius: 10, background: "#FFF8E1",
+                            border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            position: "relative",
+                        }}
                     >
                         <Bell size={17} color="#FF9800" />
                         <div style={{ position: "absolute", top: 7, right: 7, width: 8, height: 8, borderRadius: "50%", background: "#FF5252", border: "1.5px solid white" }} />
                     </button>
 
-                    {/* Add Member / Full Tree */}
-                    {!isAltMode ? (
-                        <button
-                            onClick={() => { resetRelForm(); setShowPersonForm(v => !v) }}
-                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "linear-gradient(135deg, #4CAF50, #2E7D32)", color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(76,175,80,0.35)" }}
-                        >
-                            <Plus size={16} strokeWidth={2.5} /> Add Member
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => loadFamilyTree(selectedId)}
-                            style={{ padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", background: treeMode === "descendants" ? "#d1fae5" : "#fef3c7", color: treeMode === "descendants" ? "#065f46" : "#92400e" }}
-                        >
-                            {t("tree_full_tree")}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => router.push("/invite")}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 8, padding: "10px 20px",
+                            background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                            color: "white", border: "none", borderRadius: 10,
+                            fontSize: 14, fontWeight: 700, cursor: "pointer",
+                            boxShadow: "0 4px 14px rgba(76,175,80,0.35)",
+                        }}
+                    >
+                        <Plus size={16} strokeWidth={2.5} /> Add Member
+                    </button>
                 </div>
             </header>
 
-            {/* ── Selected person action bar ── */}
-            {selectedId && selectedName && (
-                <div className="border-b border-gray-100 bg-gray-50 px-4 py-2 flex-shrink-0">
-                    <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                        <span className="text-xs font-semibold text-gray-800 shrink-0 max-w-[120px] truncate">
-                            {selectedName}
-                        </span>
-                        <button
-                            onClick={() => router.push(`/person/${selectedId}`)}
-                            className="text-xs px-2.5 py-1 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors shrink-0"
-                        >
-                            {t("tree_profile")}
-                        </button>
-                        {!isAltMode && (
-                            <>
-                                <button onClick={handleAncestorMode} className="text-xs px-2.5 py-1 border border-amber-300 text-amber-700 rounded-lg font-medium hover:bg-amber-50 transition-colors shrink-0 whitespace-nowrap">
-                                    {t("tree_ancestors")}
-                                </button>
-                                <button onClick={handleDescendantMode} className="text-xs px-2.5 py-1 border border-emerald-300 text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 transition-colors shrink-0 whitespace-nowrap">
-                                    {t("tree_descendants")}
-                                </button>
-                            </>
-                        )}
-                        <button onClick={handleShowChildren} className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors shrink-0 whitespace-nowrap">
-                            {t("tree_children")}
-                        </button>
-                        <button
-                            onClick={() => { resetPersonForm(); setShowRelForm(v => !v) }}
-                            className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors shrink-0 whitespace-nowrap"
-                        >
-                            {t("tree_add_relation")}
-                        </button>
-                        <button onClick={() => { setSelectedId(null); setSearch("") }} className="text-gray-400 hover:text-gray-600 ml-auto shrink-0 p-1">✕</button>
-                    </div>
-                </div>
-            )}
-
             {/* ── Tree canvas ── */}
-            <div className="flex-1 overflow-hidden">
+            <div
+                className="flex-1 overflow-hidden"
+                style={{ position: "relative" }}
+                onMouseDown={e => { lastClickPos.current = { x: e.clientX, y: e.clientY } }}
+            >
                 <FamilyTree
                     persons={tree.persons.map(toCardData)}
                     parentChild={tree.parent_child.map(r => ({ parentId: r.parent_id, childId: r.child_id }))}
                     spouses={tree.spouses.map(s => ({ person1Id: s.person1_id, person2Id: s.person2_id }))}
+                    siblings={(tree.siblings ?? []).map(s => ({ person1Id: s.person1_id, person2Id: s.person2_id }))}
                     selectedId={selectedId}
-                    onSelect={id => { setSelectedId(id || null); if (!id) setSearch("") }}
-                    onOpen={id => router.push(`/person/${id}`)}
+                    onSelect={id => { setSelectedId(id || null); if (!id) { setSearch(""); setContextPersonId(null) } }}
+                    onOpen={id => {
+                        setContextPersonId(prev => prev === id ? null : id)
+                        setContextMenuPos({ x: lastClickPos.current.x, y: lastClickPos.current.y })
+                    }}
                 />
+
+                {/* Context menu */}
+                {contextPersonId && (() => {
+                    const contextPerson = tree.persons.find(p => p.id === contextPersonId) ?? null
+                    if (!contextPerson) return null
+                    return (
+                        <NodeContextMenu
+                            person={contextPerson}
+                            pos={contextMenuPos}
+                            selfId={selfId}
+                            onViewProfile={() => {
+                                setContextPersonId(null)
+                                router.push(contextPersonId === selfId ? "/me" : `/person/${contextPersonId}`)
+                            }}
+                            onAddRelative={() => {
+                                setContextPersonId(null)
+                                setAddAnchor(contextPerson)
+                            }}
+                            onClose={() => setContextPersonId(null)}
+                        />
+                    )
+                })()}
+
+                {/* Hint */}
+                <div style={{
+                    position: "absolute", left: 24, bottom: 24,
+                    background: "rgba(255,255,255,0.85)", borderRadius: 10, padding: "8px 14px",
+                    fontSize: 12, color: "#888", fontWeight: 500,
+                    backdropFilter: "blur(4px)", border: "1px solid rgba(0,0,0,0.05)",
+                    pointerEvents: "none",
+                }}>
+                    🖱️ Drag to pan · Scroll to zoom · <strong>Click</strong> a member to view or add relatives
+                </div>
             </div>
 
-            {/* ── Bottom stats bar ── */}
+            {/* ── Bottom stats ── */}
             <div
                 className="flex-shrink-0"
                 style={{ padding: "14px 32px", background: "#FFFFFF", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 32 }}
             >
                 {[
                     { label: "Total Members", value: memberCount, emoji: "👥" },
-                    { label: "Generations", value: generationCount || "—", emoji: "🌳" },
-                    { label: "Memories", value: 0, emoji: "📸" },
-                    { label: "Reminders", value: 0, emoji: "🔔" },
+                    { label: "Generations",   value: generationCount || "—", emoji: "🌳" },
+                    { label: "Memories",      value: 0, emoji: "📸" },
+                    { label: "Reminders",     value: 0, emoji: "🔔" },
                 ].map(stat => (
                     <div key={stat.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{ width: 38, height: 38, borderRadius: 10, background: "#F0F8F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -355,72 +933,58 @@ export default function FamilyTreePage({ params }: Props) {
 
                 <div style={{ marginLeft: "auto" }}>
                     <button
-                        onClick={() => router.push("/families")}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#E8F5E9", color: "#2E7D32", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                        onClick={() => router.push("/invite")}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            padding: "10px 20px", background: "#E8F5E9", color: "#2E7D32",
+                            border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        }}
                     >
-                        <Plus size={15} /> Invite Relatives
+                        <Plus size={15} /> Invite Family
                     </button>
                 </div>
             </div>
 
-            {/* ── Form modal ── */}
-            {showForm && (
-                <div
-                    className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/20 backdrop-blur-sm"
-                    onClick={e => { if (e.target === e.currentTarget) { resetPersonForm(); resetRelForm() } }}
-                >
-                    <div className="w-full sm:w-96 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto">
-                        {showPersonForm && (
-                            <>
-                                <h3 className="font-bold text-gray-900 text-base mb-4">{t("tree_add_person_title")}</h3>
-                                <div className="flex flex-col gap-3">
-                                    <input className={inputCls} placeholder={t("tree_first_name")} value={firstName} onChange={e => setFirstName(e.target.value)} />
-                                    <input className={inputCls} placeholder={t("tree_last_name")} value={lastName} onChange={e => setLastName(e.target.value)} />
-                                    <select className={inputCls} value={gender} onChange={e => setGender(e.target.value)}>
-                                        <option value="male">{t("male")}</option>
-                                        <option value="female">{t("female")}</option>
-                                    </select>
-                                    <input className={inputCls} type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} />
-                                    <textarea className={`${inputCls} resize-none`} placeholder={t("tree_biography")} rows={3} value={biography} onChange={e => setBiography(e.target.value)} />
-                                    {personError && <p className="text-red-500 text-xs">{personError}</p>}
-                                    <div className="flex gap-2 pt-1">
-                                        <button onClick={handleCreatePerson} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors">{t("save")}</button>
-                                        <button onClick={resetPersonForm} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">{t("cancel")}</button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {showRelForm && (
-                            <>
-                                <h3 className="font-bold text-gray-900 text-base mb-4">{t("tree_add_rel_title")}</h3>
-                                {persons.length < 2 ? (
-                                    <p className="text-sm text-gray-500">{t("tree_need_two")}</p>
-                                ) : (
-                                    <div className="flex flex-col gap-3">
-                                        <select className={inputCls} value={person1Id} onChange={e => setPerson1Id(e.target.value)}>
-                                            <option value="">{t("tree_person_a")}</option>
-                                            {persons.map(p => <option key={p.id} value={p.id}>{[p.first_name, p.last_name].filter(Boolean).join(" ")}</option>)}
-                                        </select>
-                                        <select className={inputCls} value={relationType} onChange={e => setRelationType(e.target.value)}>
-                                            {RELATION_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
-                                        </select>
-                                        <select className={inputCls} value={person2Id} onChange={e => setPerson2Id(e.target.value)}>
-                                            <option value="">{t("tree_person_b")}</option>
-                                            {persons.map(p => <option key={p.id} value={p.id}>{[p.first_name, p.last_name].filter(Boolean).join(" ")}</option>)}
-                                        </select>
-                                        {relError && <p className="text-red-500 text-xs">{relError}</p>}
-                                        <div className="flex gap-2 pt-1">
-                                            <button onClick={handleCreateRelationship} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors">{t("tree_connect")}</button>
-                                            <button onClick={resetRelForm} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">{t("cancel")}</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
+            {/* Add Relative Panel */}
+            {addAnchor && (
+                <AddRelativePanel
+                    anchor={addAnchor}
+                    familyId={familyId}
+                    existingPersons={tree.persons}
+                    onClose={() => setAddAnchor(null)}
+                    onAdded={name => {
+                        setAddAnchor(null)
+                        loadFamilyTree()
+                        showToast(`✅ ${name} added to the tree!`)
+                    }}
+                />
             )}
+
+            <style>{`
+                @keyframes ctxPopUp {
+                    from { opacity: 0; transform: translate(-50%, calc(-100% - 6px)) scale(0.92); }
+                    to   { opacity: 1; transform: translate(-50%, calc(-100% - 14px)) scale(1); }
+                }
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); }
+                    to   { transform: translateX(0); }
+                }
+                @keyframes panelFadeIn {
+                    from { opacity: 0; }
+                    to   { opacity: 1; }
+                }
+                @keyframes popIn {
+                    from { opacity: 0; transform: scale(0.5); }
+                    to   { opacity: 1; transform: scale(1); }
+                }
+                @keyframes toastFadeUp {
+                    from { opacity: 0; transform: translate(-50%, 10px); }
+                    to   { opacity: 1; transform: translate(-50%, 0); }
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     )
 }

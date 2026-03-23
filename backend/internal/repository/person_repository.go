@@ -15,18 +15,18 @@ func NewPersonRepository() *PersonRepository {
 
 func (r *PersonRepository) CreatePerson(ctx context.Context, p *models.Person) error {
 	query := `
-	INSERT INTO persons (id, family_id, first_name, last_name, gender, birth_date, biography, visibility)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+	INSERT INTO persons (id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 	`
 	_, err := database.DB.Exec(ctx, query,
-		p.ID, p.FamilyID, p.FirstName, p.LastName, p.Gender, p.BirthDate, p.Biography, p.Visibility,
+		p.ID, p.FamilyID, p.Email, p.FirstName, p.LastName, p.Gender, p.BirthDate, p.Biography, p.Visibility,
 	)
 	return err
 }
 
 func (r *PersonRepository) GetPersons(ctx context.Context, familyID string) ([]models.Person, error) {
 	query := `
-	SELECT id, family_id, first_name, last_name, gender, birth_date, biography, visibility, created_at
+	SELECT id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility, created_at
 	FROM persons
 	WHERE family_id=$1
 	`
@@ -39,7 +39,7 @@ func (r *PersonRepository) GetPersons(ctx context.Context, familyID string) ([]m
 	var persons []models.Person
 	for rows.Next() {
 		var p models.Person
-		if err := rows.Scan(&p.ID, &p.FamilyID, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.FamilyID, &p.Email, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		persons = append(persons, p)
@@ -49,13 +49,29 @@ func (r *PersonRepository) GetPersons(ctx context.Context, familyID string) ([]m
 
 func (r *PersonRepository) GetPersonByID(ctx context.Context, id string) (*models.Person, error) {
 	query := `
-	SELECT id, family_id, first_name, last_name, gender, birth_date, biography, visibility, created_at
+	SELECT id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility, created_at
 	FROM persons
 	WHERE id=$1
 	`
 	var p models.Person
 	err := database.DB.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.FamilyID, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt,
+		&p.ID, &p.FamilyID, &p.Email, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *PersonRepository) GetPersonByEmail(ctx context.Context, email string) (*models.Person, error) {
+	query := `
+	SELECT id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility, created_at
+	FROM persons
+	WHERE email=$1
+	`
+	var p models.Person
+	err := database.DB.QueryRow(ctx, query, email).Scan(
+		&p.ID, &p.FamilyID, &p.Email, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -66,12 +82,17 @@ func (r *PersonRepository) GetPersonByID(ctx context.Context, id string) (*model
 func (r *PersonRepository) UpdatePerson(ctx context.Context, p *models.Person) error {
 	query := `
 	UPDATE persons
-	SET first_name = $1, last_name = $2, gender = $3, birth_date = $4, biography = $5, visibility = $6
-	WHERE id = $7
+	SET email = $1, first_name = $2, last_name = $3, gender = $4, birth_date = $5, biography = $6, visibility = $7
+	WHERE id = $8
 	`
 	_, err := database.DB.Exec(ctx, query,
-		p.FirstName, p.LastName, p.Gender, p.BirthDate, p.Biography, p.Visibility, p.ID,
+		p.Email, p.FirstName, p.LastName, p.Gender, p.BirthDate, p.Biography, p.Visibility, p.ID,
 	)
+	return err
+}
+
+func (r *PersonRepository) SetPersonEmail(ctx context.Context, personID, email string) error {
+	_, err := database.DB.Exec(ctx, `UPDATE persons SET email = $1 WHERE id = $2 AND email IS NULL`, email, personID)
 	return err
 }
 
@@ -82,7 +103,7 @@ func (r *PersonRepository) DeletePerson(ctx context.Context, id string) error {
 
 func (r *PersonRepository) SearchPersons(ctx context.Context, q string) ([]models.Person, error) {
 	query := `
-	SELECT id, family_id, first_name, last_name, gender, birth_date, biography, visibility, created_at
+	SELECT id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility, created_at
 	FROM persons
 	WHERE (first_name ILIKE $1 OR last_name ILIKE $1 OR biography ILIKE $1)
 	  AND visibility = 'public'
@@ -98,7 +119,7 @@ func (r *PersonRepository) SearchPersons(ctx context.Context, q string) ([]model
 	var persons []models.Person
 	for rows.Next() {
 		var p models.Person
-		if err := rows.Scan(&p.ID, &p.FamilyID, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.FamilyID, &p.Email, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		persons = append(persons, p)
@@ -120,7 +141,7 @@ func (r *PersonRepository) MergePersons(ctx context.Context, keepID, removeID st
 		`UPDATE photos SET person_id = $1 WHERE person_id = $2`,
 		`UPDATE stories SET person_id = $1 WHERE person_id = $2`,
 		`UPDATE events SET person_id = $1 WHERE person_id = $2`,
-		`UPDATE users SET person_id = $1 WHERE person_id = $2`,
+		`UPDATE user_person_links SET person_id = $1 WHERE person_id = $2`,
 		`DELETE FROM persons WHERE id = $2`,
 	}
 
@@ -130,7 +151,6 @@ func (r *PersonRepository) MergePersons(ctx context.Context, keepID, removeID st
 		}
 	}
 
-	// Remove duplicate relationships that arose from the merge
 	_, err = tx.Exec(ctx, `
 		DELETE FROM relationships
 		WHERE id NOT IN (
@@ -155,7 +175,7 @@ func (r *PersonRepository) UpdatePersonFamilyID(ctx context.Context, personID, f
 
 func (r *PersonRepository) FindDuplicatesInFamily(ctx context.Context, familyID string) ([]models.Person, error) {
 	query := `
-	SELECT id, family_id, first_name, last_name, gender, birth_date, biography, visibility, created_at
+	SELECT id, family_id, email, first_name, last_name, gender, birth_date, biography, visibility, created_at
 	FROM persons
 	WHERE family_id = $1
 	  AND (first_name, coalesce(last_name, '')) IN (
@@ -176,7 +196,7 @@ func (r *PersonRepository) FindDuplicatesInFamily(ctx context.Context, familyID 
 	var persons []models.Person
 	for rows.Next() {
 		var p models.Person
-		if err := rows.Scan(&p.ID, &p.FamilyID, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.FamilyID, &p.Email, &p.FirstName, &p.LastName, &p.Gender, &p.BirthDate, &p.Biography, &p.Visibility, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		persons = append(persons, p)

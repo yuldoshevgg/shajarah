@@ -7,6 +7,7 @@ type Relationship struct {
 	Person1ID    string    `db:"person1_id" json:"person1_id"`
 	Person2ID    string    `db:"person2_id" json:"person2_id"`
 	RelationType string    `db:"relation_type" json:"relation_type"`
+	FamilyID     string    `db:"family_id" json:"family_id"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
 
@@ -14,6 +15,7 @@ type RelatedPerson struct {
 	ID        string `json:"id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	Gender    string `json:"gender"`
 }
 
 type PersonRelationshipView struct {

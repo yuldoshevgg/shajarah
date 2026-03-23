@@ -183,7 +183,7 @@ export default function OnboardingPage() {
     const [langOpen, setLangOpen] = useState(false)
 
     useEffect(() => {
-        if (getToken()) router.replace("/dashboard")
+        if (getToken()) router.replace("/families")
     }, [router])
 
     const s = STEPS[step]

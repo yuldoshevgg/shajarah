@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
+	"shajarah-backend/internal/database"
 	"shajarah-backend/internal/models"
 	"shajarah-backend/internal/repository"
 
@@ -55,4 +57,45 @@ func (h *StoryHandler) GetStories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stories)
+}
+
+type FamilyStory struct {
+	ID        string    `json:"id"`
+	PersonID  string    `json:"person_id"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+}
+
+func (h *StoryHandler) GetFamilyStories(c *gin.Context) {
+	familyID := c.Param("id")
+
+	rows, err := database.DB.Query(
+		c.Request.Context(),
+		`SELECT s.id, s.person_id, s.title, s.content, s.created_at, p.first_name, p.last_name
+		FROM stories s
+		JOIN persons p ON p.id = s.person_id
+		WHERE p.family_id = $1
+		ORDER BY s.created_at DESC`,
+		familyID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	stories := []FamilyStory{}
+	for rows.Next() {
+		var s FamilyStory
+		if err := rows.Scan(&s.ID, &s.PersonID, &s.Title, &s.Content, &s.CreatedAt, &s.FirstName, &s.LastName); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		stories = append(stories, s)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"stories": stories})
 }

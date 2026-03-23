@@ -2,6 +2,7 @@ package models
 
 type CreatePersonRequest struct {
 	FamilyID   string `json:"family_id" binding:"required"`
+	Email      string `json:"email" binding:"omitempty,email"`
 	FirstName  string `json:"first_name" binding:"required"`
 	LastName   string `json:"last_name"`
 	Gender     string `json:"gender" binding:"required,oneof=male female"`
@@ -47,6 +48,7 @@ type LoginRequest struct {
 }
 
 type UpdatePersonRequest struct {
+	Email      *string `json:"email"`
 	FirstName  *string `json:"first_name"`
 	LastName   *string `json:"last_name"`
 	Gender     *string `json:"gender"`
@@ -60,6 +62,7 @@ type UpdateRelationshipRequest struct {
 }
 
 type InviteRequest struct {
-	Email string `json:"email" binding:"required,email"`
-	Role  string `json:"role" binding:"required,oneof=admin editor viewer"`
+	Email        string `json:"email" binding:"required,email"`
+	Role         string `json:"role" binding:"required,oneof=admin editor viewer member"`
+	RelationType string `json:"relation_type"`
 }

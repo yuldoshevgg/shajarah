@@ -4,7 +4,6 @@ import { setToken, setPersonId } from "@/lib/auth"
 export interface AuthUser {
     id: string
     email: string
-    person_id: string
     created_at: string
 }
 
@@ -19,6 +18,7 @@ export interface AuthResponse {
     token: string
     user: AuthUser
     person?: AuthPerson
+    person_id?: string
 }
 
 export async function register(
@@ -39,7 +39,7 @@ export async function register(
     }
     const data: AuthResponse = await res.json()
     setToken(data.token)
-    setPersonId(data.user.person_id)
+    if (data.person_id) setPersonId(data.person_id)
     return data
 }
 
@@ -55,6 +55,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
     }
     const data: AuthResponse = await res.json()
     setToken(data.token)
-    setPersonId(data.user.person_id)
+    if (data.person_id) setPersonId(data.person_id)
     return data
 }

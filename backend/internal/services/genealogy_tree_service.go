@@ -2,52 +2,23 @@ package services
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"shajarah-backend/internal/database"
 	"shajarah-backend/internal/models"
 )
 
-type genealogyCache struct {
-	data      *models.GenealogyTree
-	expiresAt time.Time
-}
-
-type GenealogyTreeService struct {
-	mu    sync.Mutex
-	cache map[string]genealogyCache
-}
+type GenealogyTreeService struct{}
 
 func NewGenealogyTreeService() *GenealogyTreeService {
-	return &GenealogyTreeService{cache: make(map[string]genealogyCache)}
+	return &GenealogyTreeService{}
 }
 
-func (s *GenealogyTreeService) InvalidateCache(familyID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.cache, "family:"+familyID)
+func (s *GenealogyTreeService) InvalidateCache(_ string) {
+	// no-op: caching removed to prevent stale tree data
 }
 
 func (s *GenealogyTreeService) GetFamilyGenealogyTree(ctx context.Context, familyID string) (*models.GenealogyTree, error) {
-	key := "family:" + familyID
-	s.mu.Lock()
-	if entry, ok := s.cache[key]; ok && time.Now().Before(entry.expiresAt) {
-		s.mu.Unlock()
-		return entry.data, nil
-	}
-	s.mu.Unlock()
-
-	tree, err := s.buildFamilyTree(ctx, familyID)
-	if err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	s.cache[key] = genealogyCache{data: tree, expiresAt: time.Now().Add(5 * time.Minute)}
-	s.mu.Unlock()
-
-	return tree, nil
+	return s.buildFamilyTree(ctx, familyID)
 }
 
 func (s *GenealogyTreeService) buildFamilyTree(ctx context.Context, familyID string) (*models.GenealogyTree, error) {
@@ -55,6 +26,7 @@ func (s *GenealogyTreeService) buildFamilyTree(ctx context.Context, familyID str
 		Persons:     []models.GenealogyPerson{},
 		ParentChild: []models.ParentChildRelation{},
 		Spouses:     []models.SpouseRelation{},
+		Siblings:    []models.SiblingRelation{},
 	}
 
 	rows, err := database.DB.Query(ctx, `
@@ -83,8 +55,8 @@ func (s *GenealogyTreeService) buildFamilyTree(ctx context.Context, familyID str
 	rows2, err := database.DB.Query(ctx, `
 		SELECT r.person1_id, r.person2_id, r.relation_type
 		FROM relationships r
-		JOIN persons p ON p.id = r.person1_id
-		WHERE p.family_id = $1
+		WHERE r.person1_id IN (SELECT id FROM persons WHERE family_id = $1)
+		   OR r.person2_id IN (SELECT id FROM persons WHERE family_id = $1)
 	`, familyID)
 	if err != nil {
 		return nil, err
@@ -99,17 +71,11 @@ func (s *GenealogyTreeService) buildFamilyTree(ctx context.Context, familyID str
 			return nil, err
 		}
 		switch t {
-		case "parent", "father", "mother":
+		case "parent":
 			key := p1 + ":" + p2
 			if !pcSet[key] {
 				pcSet[key] = true
 				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p1, ChildID: p2})
-			}
-		case "child":
-			key := p2 + ":" + p1
-			if !pcSet[key] {
-				pcSet[key] = true
-				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p2, ChildID: p1})
 			}
 		case "spouse":
 			k1 := p1 + ":" + p2
@@ -146,14 +112,8 @@ func (s *GenealogyTreeService) GetAncestorTree(ctx context.Context, personID str
 				TO_CHAR(p.birth_date, 'YYYY-MM-DD'),
 				TO_CHAR(p.death_date, 'YYYY-MM-DD')
 			FROM ancestors a
-			JOIN relationships r ON (
-				(r.person2_id = a.id AND r.relation_type IN ('parent', 'father', 'mother'))
-				OR (r.person1_id = a.id AND r.relation_type = 'child')
-			)
-			JOIN persons p ON (
-				(r.relation_type IN ('parent', 'father', 'mother') AND p.id = r.person1_id)
-				OR (r.relation_type = 'child' AND p.id = r.person2_id)
-			)
+			JOIN relationships r ON (r.person2_id = a.id AND r.relation_type = 'parent')
+			JOIN persons p ON p.id = r.person1_id
 		)
 		SELECT DISTINCT id, first_name, last_name, gender, birth_date, death_date
 		FROM ancestors
@@ -219,17 +179,11 @@ func (s *GenealogyTreeService) GetAncestorTree(ctx context.Context, personID str
 			return nil, err
 		}
 		switch t {
-		case "parent", "father", "mother":
+		case "parent":
 			key := p1 + ":" + p2
 			if !pcSet2[key] {
 				pcSet2[key] = true
 				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p1, ChildID: p2})
-			}
-		case "child":
-			key := p2 + ":" + p1
-			if !pcSet2[key] {
-				pcSet2[key] = true
-				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p2, ChildID: p1})
 			}
 		case "spouse":
 			k1 := p1 + ":" + p2
@@ -265,14 +219,8 @@ func (s *GenealogyTreeService) GetDescendantsTree(ctx context.Context, personID 
 				TO_CHAR(p.birth_date, 'YYYY-MM-DD'),
 				TO_CHAR(p.death_date, 'YYYY-MM-DD')
 			FROM descendants d
-			JOIN relationships r ON (
-				(r.person1_id = d.id AND r.relation_type IN ('parent', 'father', 'mother'))
-				OR (r.person2_id = d.id AND r.relation_type = 'child')
-			)
-			JOIN persons p ON (
-				(r.relation_type IN ('parent', 'father', 'mother') AND p.id = r.person2_id)
-				OR (r.relation_type = 'child' AND p.id = r.person1_id)
-			)
+			JOIN relationships r ON (r.person1_id = d.id AND r.relation_type = 'parent')
+			JOIN persons p ON p.id = r.person2_id
 		)
 		SELECT DISTINCT id, first_name, last_name, gender, birth_date, death_date
 		FROM descendants
@@ -335,17 +283,11 @@ func (s *GenealogyTreeService) GetDescendantsTree(ctx context.Context, personID 
 			return nil, err
 		}
 		switch t {
-		case "parent", "father", "mother":
+		case "parent":
 			key := p1 + ":" + p2
 			if !pcSet[key] {
 				pcSet[key] = true
 				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p1, ChildID: p2})
-			}
-		case "child":
-			key := p2 + ":" + p1
-			if !pcSet[key] {
-				pcSet[key] = true
-				tree.ParentChild = append(tree.ParentChild, models.ParentChildRelation{ParentID: p2, ChildID: p1})
 			}
 		case "spouse":
 			k1 := p1 + ":" + p2
@@ -384,14 +326,8 @@ func (s *GenealogyTreeService) GetLineage(ctx context.Context, personID string) 
 				TO_CHAR(p.death_date, 'YYYY-MM-DD'),
 				l.level + 1
 			FROM lineage l
-			JOIN relationships r ON (
-				(r.person2_id = l.id AND r.relation_type IN ('parent', 'father', 'mother'))
-				OR (r.person1_id = l.id AND r.relation_type = 'child')
-			)
-			JOIN persons p ON (
-				(r.relation_type IN ('parent', 'father', 'mother') AND p.id = r.person1_id)
-				OR (r.relation_type = 'child' AND p.id = r.person2_id)
-			)
+			JOIN relationships r ON (r.person2_id = l.id AND r.relation_type = 'parent')
+			JOIN persons p ON p.id = r.person1_id
 			WHERE l.level < 20
 		)
 		SELECT DISTINCT ON (id) id, first_name, last_name, gender, birth_date, death_date, level
@@ -422,10 +358,7 @@ func (s *GenealogyTreeService) GetDirectChildren(ctx context.Context, personID s
 			TO_CHAR(p.death_date, 'YYYY-MM-DD'),
 			(SELECT ph.url FROM photos ph WHERE ph.person_id = p.id ORDER BY ph.uploaded_at LIMIT 1)
 		FROM relationships r
-		JOIN persons p ON (
-			(r.person1_id = $1 AND r.relation_type IN ('parent', 'father', 'mother') AND p.id = r.person2_id)
-			OR (r.person2_id = $1 AND r.relation_type = 'child' AND p.id = r.person1_id)
-		)
+		JOIN persons p ON (r.person1_id = $1 AND r.relation_type = 'parent' AND p.id = r.person2_id)
 	`, personID)
 	if err != nil {
 		return nil, err

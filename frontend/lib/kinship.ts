@@ -110,8 +110,28 @@ export function computeKinship(
         } else if (up === 1 && down === 2) {
             label = isFemale ? "Niece" : "Nephew"
         } else if (up === 1 && down === 0 && lateral) {
-            // parent's spouse (step-parent)
+            // parent's spouse (step-parent or in-law)
             label = isFemale ? "Step-mother" : "Step-father"
+        } else if (up === 2 && down === 0 && lateral) {
+            // grandparent's spouse
+            label = isFemale ? "Grandmother" : "Grandfather"
+        } else if (up === 3 && down === 0 && lateral) {
+            // great-grandparent's spouse
+            label = isFemale ? "Great-grandmother" : "Great-grandfather"
+        } else if (up === 4 && down === 0 && lateral) {
+            label = isFemale ? "2x Great-grandmother" : "2x Great-grandfather"
+        } else if (up === 0 && down === 1 && lateral) {
+            // child's spouse
+            label = isFemale ? "Daughter-in-law" : "Son-in-law"
+        } else if (up === 0 && down === 2 && lateral) {
+            // grandchild's spouse
+            label = isFemale ? "Granddaughter-in-law" : "Grandson-in-law"
+        } else if (up === 1 && down === 1 && lateral) {
+            // sibling's spouse
+            label = isFemale ? "Sister-in-law" : "Brother-in-law"
+        } else if (up === 2 && down === 1 && lateral) {
+            // aunt/uncle's spouse
+            label = isFemale ? "Aunt" : "Uncle"
         } else {
             // fallback
             label = isFemale ? "Female Relative" : "Male Relative"

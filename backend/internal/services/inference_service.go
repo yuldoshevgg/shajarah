@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"shajarah-backend/internal/database"
 )
@@ -133,6 +134,93 @@ func (s *InferenceService) loadPersons(ctx context.Context, familyID string) (ma
 		m[id] = [3]string{fn, ln, g}
 	}
 	return m, nil
+}
+
+func (s *InferenceService) FindRelationship(ctx context.Context, fromID, toID string) (string, error) {
+	if fromID == toID {
+		return "Same Person", nil
+	}
+
+	familyID, err := s.getFamilyID(ctx, fromID)
+	if err != nil {
+		return "", err
+	}
+
+	edges, err := s.loadEdges(ctx, familyID)
+	if err != nil {
+		return "", err
+	}
+
+	type step struct {
+		to  string
+		rel string
+	}
+	adj := map[string][]step{}
+	for _, e := range edges {
+		adj[e.from] = append(adj[e.from], step{e.to, e.relType})
+		switch e.relType {
+		case "parent":
+			adj[e.to] = append(adj[e.to], step{e.from, "child"})
+		case "sibling", "spouse":
+			adj[e.to] = append(adj[e.to], step{e.from, e.relType})
+		}
+	}
+
+	type state struct {
+		id   string
+		path []string
+	}
+
+	visited := map[string]bool{fromID: true}
+	queue := []state{{fromID, nil}}
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if len(cur.path) >= 5 {
+			continue
+		}
+		for _, s := range adj[cur.id] {
+			if visited[s.to] {
+				continue
+			}
+			newPath := append(append([]string{}, cur.path...), s.rel)
+			if s.to == toID {
+				return pathToLabel(newPath), nil
+			}
+			visited[s.to] = true
+			queue = append(queue, state{s.to, newPath})
+		}
+	}
+
+	return "Distant Relative", nil
+}
+
+func pathToLabel(path []string) string {
+	labels := map[string]string{
+		"parent":                     "Parent",
+		"child":                      "Child",
+		"sibling":                    "Sibling",
+		"spouse":                     "Spouse",
+		"parent-parent":              "Grandparent",
+		"child-child":                "Grandchild",
+		"parent-sibling":             "Uncle/Aunt",
+		"sibling-child":              "Nephew/Niece",
+		"parent-parent-parent":       "Great-Grandparent",
+		"child-child-child":          "Great-Grandchild",
+		"parent-sibling-child":       "Cousin",
+		"child-spouse":               "Child-in-Law",
+		"spouse-parent":              "Parent-in-Law",
+		"spouse-sibling":             "Sibling-in-Law",
+		"parent-spouse":              "Step-Parent",
+		"sibling-spouse":             "Sibling-in-Law",
+		"parent-parent-sibling":      "Great-Uncle/Aunt",
+		"parent-sibling-child-child": "Second Cousin",
+	}
+	if l, ok := labels[strings.Join(path, "-")]; ok {
+		return l
+	}
+	return "Relative"
 }
 
 func (s *InferenceService) loadEdges(ctx context.Context, familyID string) ([]relEdge, error) {

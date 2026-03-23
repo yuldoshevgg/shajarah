@@ -15,10 +15,11 @@ type FamilyHandler struct {
 	memberRepo *repository.MemberRepository
 	personRepo *repository.PersonRepository
 	relRepo    *repository.RelationshipRepository
+	userRepo   *repository.UserRepository
 }
 
-func NewFamilyHandler(repo *repository.FamilyRepository, memberRepo *repository.MemberRepository, personRepo *repository.PersonRepository, relRepo *repository.RelationshipRepository) *FamilyHandler {
-	return &FamilyHandler{repo: repo, memberRepo: memberRepo, personRepo: personRepo, relRepo: relRepo}
+func NewFamilyHandler(repo *repository.FamilyRepository, memberRepo *repository.MemberRepository, personRepo *repository.PersonRepository, relRepo *repository.RelationshipRepository, userRepo *repository.UserRepository) *FamilyHandler {
+	return &FamilyHandler{repo: repo, memberRepo: memberRepo, personRepo: personRepo, relRepo: relRepo, userRepo: userRepo}
 }
 
 func (h *FamilyHandler) CreateFamily(c *gin.Context) {
@@ -47,9 +48,11 @@ func (h *FamilyHandler) CreateFamily(c *gin.Context) {
 		return
 	}
 
-	// Automatically add the creator as the first person in the tree
-	if personID := c.GetString("person_id"); personID != "" {
-		_ = h.personRepo.UpdatePersonFamilyID(c.Request.Context(), personID, family.ID)
+	if ownerPersonID, _ := h.userRepo.GetPersonIDForUser(c.Request.Context(), userID); ownerPersonID != "" {
+		if err := h.personRepo.UpdatePersonFamilyID(c.Request.Context(), ownerPersonID, family.ID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to link owner to family tree"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, family)

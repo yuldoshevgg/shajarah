@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"shajarah-backend/internal/database"
 	"shajarah-backend/internal/models"
 	"shajarah-backend/internal/repository"
 
@@ -32,7 +33,15 @@ func NewClaimHandler(
 	}
 }
 
-// RequestClaim submits a claim on a person, pending admin approval.
+// isPersonClaimed returns true if a user_person_links row exists for this person.
+func isPersonClaimed(h *ClaimHandler, c *gin.Context, personID string) bool {
+	var exists bool
+	_ = database.DB.QueryRow(c.Request.Context(),
+		`SELECT EXISTS(SELECT 1 FROM user_person_links WHERE person_id = $1)`, personID,
+	).Scan(&exists)
+	return exists
+}
+
 func (h *ClaimHandler) RequestClaim(c *gin.Context) {
 	personID := c.Param("id")
 	callerUserID := c.GetString("user_id")
@@ -42,8 +51,7 @@ func (h *ClaimHandler) RequestClaim(c *gin.Context) {
 		return
 	}
 
-	// Reject if person is already claimed by another user
-	if existing, err := h.userRepo.GetUserByPersonID(c.Request.Context(), personID); err == nil && existing != nil {
+	if isPersonClaimed(h, c, personID) {
 		c.JSON(http.StatusConflict, gin.H{"error": "person already claimed"})
 		return
 	}
@@ -55,7 +63,6 @@ func (h *ClaimHandler) RequestClaim(c *gin.Context) {
 		Status:    "pending",
 		CreatedAt: time.Now(),
 	}
-
 	if err := h.claimRepo.Create(c.Request.Context(), claim); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to submit claim"})
 		return
@@ -64,7 +71,6 @@ func (h *ClaimHandler) RequestClaim(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "claim submitted, pending admin approval", "claim_id": claim.ID})
 }
 
-// ListClaims returns pending claims for a family (admin only).
 func (h *ClaimHandler) ListClaims(c *gin.Context) {
 	familyID := c.Param("id")
 	callerUserID := c.GetString("user_id")
@@ -80,15 +86,12 @@ func (h *ClaimHandler) ListClaims(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	if views == nil {
 		views = []models.ClaimView{}
 	}
-
 	c.JSON(http.StatusOK, views)
 }
 
-// ApproveClaim links the claimant user to the person (admin only).
 func (h *ClaimHandler) ApproveClaim(c *gin.Context) {
 	claimID := c.Param("id")
 	callerUserID := c.GetString("user_id")
@@ -98,13 +101,11 @@ func (h *ClaimHandler) ApproveClaim(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "claim not found"})
 		return
 	}
-
 	if claim.Status != "pending" {
 		c.JSON(http.StatusConflict, gin.H{"error": "claim already resolved"})
 		return
 	}
 
-	// Verify caller is admin of the person's family
 	person, err := h.personRepo.GetPersonByID(c.Request.Context(), claim.PersonID)
 	if err != nil || person.FamilyID == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "person not found"})
@@ -117,13 +118,19 @@ func (h *ClaimHandler) ApproveClaim(c *gin.Context) {
 		return
 	}
 
-	// Check the person isn't already claimed by someone else
-	if existing, err := h.userRepo.GetUserByPersonID(c.Request.Context(), claim.PersonID); err == nil && existing != nil {
+	if isPersonClaimed(h, c, claim.PersonID) {
 		c.JSON(http.StatusConflict, gin.H{"error": "person already claimed by another user"})
 		return
 	}
 
-	if err := h.userRepo.UpdatePersonID(c.Request.Context(), claim.UserID, claim.PersonID); err != nil {
+	// Create the user_person_links row
+	_, err = database.DB.Exec(c.Request.Context(),
+		`INSERT INTO user_person_links (id, user_id, person_id, family_id, created_at)
+		 VALUES ($1, $2, $3, $4, NOW())
+		 ON CONFLICT DO NOTHING`,
+		uuid.New().String(), claim.UserID, claim.PersonID, *person.FamilyID,
+	)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to link user to person"})
 		return
 	}
@@ -136,7 +143,6 @@ func (h *ClaimHandler) ApproveClaim(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "claim approved"})
 }
 
-// RejectClaim denies the claim (admin only).
 func (h *ClaimHandler) RejectClaim(c *gin.Context) {
 	claimID := c.Param("id")
 	callerUserID := c.GetString("user_id")

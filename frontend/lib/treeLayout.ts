@@ -30,9 +30,16 @@ export interface ChildGroup {
     childCenters: Array<{ id: string; cx: number }>
 }
 
+export interface SiblingLine {
+    id: string
+    x1: number; y1: number
+    x2: number; y2: number
+}
+
 export interface LayoutResult {
     nodes: LayoutNode[]
     spouseLines: SpouseLine[]
+    siblingLines: SiblingLine[]
     childGroups: ChildGroup[]
     width: number
     height: number
@@ -46,15 +53,17 @@ interface Unit {
 }
 
 export function computeTreeLayout(
-    persons: { id: string }[],
+    persons: { id: string; gender?: string }[],
     parentChild: { parentId: string; childId: string }[],
     spouses: { person1Id: string; person2Id: string }[],
+    siblings: { person1Id: string; person2Id: string }[] = [],
 ): LayoutResult {
     if (persons.length === 0) {
-        return { nodes: [], spouseLines: [], childGroups: [], width: 0, height: 0 }
+        return { nodes: [], spouseLines: [], siblingLines: [], childGroups: [], width: 0, height: 0 }
     }
 
     const ids = new Set(persons.map(p => p.id))
+    const genderOf = new Map(persons.map(p => [p.id, p.gender ?? ""]))
 
     // --- Build relationship maps ---
     const parentsOf = new Map<string, string[]>()
@@ -91,6 +100,33 @@ export function computeTreeLayout(
     }
     for (const id of ids) if (!genOf.has(id)) genOf.set(id, 0)
 
+    // --- Backward gen constraint pass ---
+    // Roots with no parents get gen=0 from BFS, but if their children are at gen=2
+    // (because another parent has a grandparent), they should be pulled up to gen=1.
+    // Repeat until stable (O(depth) iterations, bounded).
+    {
+        let changed = true
+        while (changed) {
+            changed = false
+            for (const { parentId, childId } of parentChild) {
+                if (!ids.has(parentId) || !ids.has(childId)) continue
+                const expected = (genOf.get(childId) ?? 0) - 1
+                if ((genOf.get(parentId) ?? 0) < expected) {
+                    genOf.set(parentId, expected)
+                    changed = true
+                }
+            }
+            // Keep explicit spouses at the same generation
+            for (const [a, b] of spouseOf) {
+                const ga = genOf.get(a) ?? 0
+                const gb = genOf.get(b) ?? 0
+                const max = Math.max(ga, gb)
+                if (ga < max) { genOf.set(a, max); changed = true }
+                if (gb < max) { genOf.set(b, max); changed = true }
+            }
+        }
+    }
+
     // --- Build couple units (each person belongs to exactly one unit) ---
     const units = new Map<string, Unit>()
     const personToUnit = new Map<string, string>()  // personId → unit primary id
@@ -103,8 +139,11 @@ export function computeTreeLayout(
         let secondary: string | undefined
 
         if (spouse && ids.has(spouse) && !processed.has(spouse)) {
-            primary = id < spouse ? id : spouse
-            secondary = id < spouse ? spouse : id
+            // Male on the left (primary), female on the right (secondary)
+            const isMale   = genderOf.get(id)    !== "female"
+            const spIsMale = genderOf.get(spouse) !== "female"
+            primary   = isMale || (!isMale && !spIsMale) ? id : spouse
+            secondary = isMale || (!isMale && !spIsMale) ? spouse : id
             processed.add(primary)
             processed.add(secondary)
         } else if (spouse && processed.has(spouse)) {
@@ -122,6 +161,60 @@ export function computeTreeLayout(
         units.set(primary, { primary, secondary, childIds: [...children], gen: genOf.get(primary) ?? 0 })
         personToUnit.set(primary, primary)
         if (secondary) personToUnit.set(secondary, primary)
+    }
+
+    // --- Sibling generation alignment ---
+    // Siblings must share the same generation. If one has an inferred gen (from parents)
+    // and the other is a disconnected root (gen=0 by default), pull the root up.
+    for (const { person1Id: a, person2Id: b } of siblings) {
+        if (!ids.has(a) || !ids.has(b)) continue
+        const ga = genOf.get(a) ?? 0
+        const gb = genOf.get(b) ?? 0
+        const max = Math.max(ga, gb)
+        genOf.set(a, max)
+        genOf.set(b, max)
+    }
+
+    // --- Implicit couple detection: merge solo parent units that share a child ---
+    // When father and mother are in the tree but not explicitly marked as spouses,
+    // unify them into one couple unit so the child is positioned correctly.
+    {
+        const childToParentUnits = new Map<string, string[]>()
+        for (const [uid, unit] of units) {
+            for (const cid of unit.childIds) {
+                if (!childToParentUnits.has(cid)) childToParentUnits.set(cid, [])
+                childToParentUnits.get(cid)!.push(uid)
+            }
+        }
+        const mergedSet = new Set<string>()
+        for (const parentUids of childToParentUnits.values()) {
+            const solos = parentUids.filter(uid => {
+                const u = units.get(uid)
+                return u && !u.secondary && !mergedSet.has(uid)
+            })
+            if (solos.length < 2) continue
+            const [uid1, uid2] = solos
+            // Male on the left (primary), female on the right (secondary)
+            const uid1IsMale = genderOf.get(uid1) !== "female"
+            const primary   = uid1IsMale ? uid1 : uid2
+            const secondary = uid1IsMale ? uid2 : uid1
+            const u1 = units.get(primary)!
+            const u2 = units.get(secondary)!
+            const merged: Unit = {
+                primary,
+                secondary,
+                childIds: [...new Set([...u1.childIds, ...u2.childIds])],
+                gen: Math.max(u1.gen, u2.gen),
+            }
+            units.set(primary, merged)
+            units.delete(secondary)
+            personToUnit.set(secondary, primary)
+            mergedSet.add(primary)
+            mergedSet.add(secondary)
+            // Register as spouses so the ♥ connector line is drawn
+            if (!spouseOf.has(primary))   spouseOf.set(primary, secondary)
+            if (!spouseOf.has(secondary)) spouseOf.set(secondary, primary)
+        }
     }
 
     // --- For each unit, resolve its direct child units ---
@@ -220,6 +313,22 @@ export function computeTreeLayout(
         spouseLines.push({ id: `sp-${key}`, x1: L.x + NODE_W, y1: L.y + NODE_H / 2, x2: R.x, y2: R.y + NODE_H / 2 })
     }
 
+    // --- Sibling lines ---
+    const siblingLines: SiblingLine[] = []
+    const siblingSeen = new Set<string>()
+    for (const { person1Id: a, person2Id: b } of siblings) {
+        const key = [a, b].sort().join(":")
+        if (siblingSeen.has(key)) continue
+        siblingSeen.add(key)
+        const pa = nodePos.get(a)
+        const pb = nodePos.get(b)
+        if (!pa || !pb) continue
+        const [L, R] = pa.x <= pb.x ? [pa, pb] : [pb, pa]
+        // Connect above the cards so the line is always visible
+        const topY = Math.min(L.y, R.y) - 14
+        siblingLines.push({ id: `sib-${key}`, x1: L.x, y1: topY, x2: R.x + NODE_W, y2: topY })
+    }
+
     // --- Child groups (H-tree connectors) ---
     const childGroups: ChildGroup[] = []
     for (const [unitId, unit] of units) {
@@ -258,5 +367,5 @@ export function computeTreeLayout(
     const width = allX.length > 0 ? Math.max(...allX) + NODE_W : NODE_W
     const height = allY.length > 0 ? Math.max(...allY) + NODE_H : NODE_H
 
-    return { nodes, spouseLines, childGroups, width, height }
+    return { nodes, spouseLines, siblingLines, childGroups, width, height }
 }

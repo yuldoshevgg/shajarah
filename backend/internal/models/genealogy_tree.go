@@ -20,8 +20,14 @@ type SpouseRelation struct {
 	Person2ID string `json:"person2_id"`
 }
 
+type SiblingRelation struct {
+	Person1ID string `json:"person1_id"`
+	Person2ID string `json:"person2_id"`
+}
+
 type GenealogyTree struct {
 	Persons     []GenealogyPerson     `json:"persons"`
 	ParentChild []ParentChildRelation `json:"parent_child"`
 	Spouses     []SpouseRelation      `json:"spouses"`
+	Siblings    []SiblingRelation     `json:"siblings"`
 }

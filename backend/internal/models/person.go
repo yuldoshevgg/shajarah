@@ -5,6 +5,7 @@ import "time"
 type Person struct {
 	ID         string     `db:"id" json:"id"`
 	FamilyID   *string    `db:"family_id" json:"family_id"`
+	Email      *string    `db:"email" json:"email"`
 	FirstName  string     `db:"first_name" json:"first_name"`
 	LastName   string     `db:"last_name" json:"last_name"`
 	Gender     string     `db:"gender" json:"gender"`

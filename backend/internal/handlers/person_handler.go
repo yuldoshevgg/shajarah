@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"shajarah-backend/internal/database"
 	"shajarah-backend/internal/models"
 	"shajarah-backend/internal/repository"
 
@@ -37,6 +38,17 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 		return
 	}
 
+	// Check for existing person with same email (only when email provided)
+	var emailPtr *string
+	if req.Email != "" {
+		existing, _ := h.repo.GetPersonByEmail(c.Request.Context(), req.Email)
+		if existing != nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "a person with this email already exists"})
+			return
+		}
+		emailPtr = &req.Email
+	}
+
 	familyID := req.FamilyID
 	visibility := req.Visibility
 	if visibility == "" {
@@ -45,6 +57,7 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 	person := models.Person{
 		ID:         uuid.New().String(),
 		FamilyID:   &familyID,
+		Email:      emailPtr,
 		FirstName:  req.FirstName,
 		LastName:   req.LastName,
 		Gender:     req.Gender,
@@ -126,6 +139,9 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 		return
 	}
 
+	if req.Email != nil {
+		person.Email = req.Email
+	}
 	if req.FirstName != nil {
 		person.FirstName = *req.FirstName
 	}
@@ -184,13 +200,26 @@ func (h *PersonHandler) ClaimPerson(c *gin.Context) {
 		return
 	}
 
-	existing, err := h.userRepo.GetUserByPersonID(c.Request.Context(), id)
-	if err == nil && existing != nil {
+	var alreadyClaimed bool
+	_ = database.DB.QueryRow(c.Request.Context(),
+		`SELECT EXISTS(SELECT 1 FROM user_person_links WHERE person_id = $1)`, id,
+	).Scan(&alreadyClaimed)
+	if alreadyClaimed {
 		c.JSON(http.StatusConflict, gin.H{"error": "person already claimed by another user"})
 		return
 	}
 
-	if err := h.userRepo.UpdatePersonID(c.Request.Context(), callerUserID, id); err != nil {
+	person, _ := h.repo.GetPersonByID(c.Request.Context(), id)
+	familyID := ""
+	if person != nil && person.FamilyID != nil {
+		familyID = *person.FamilyID
+	}
+
+	if _, err := database.DB.Exec(c.Request.Context(),
+		`INSERT INTO user_person_links (id, user_id, person_id, family_id, created_at)
+		 VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT DO NOTHING`,
+		uuid.New().String(), callerUserID, id, familyID,
+	); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

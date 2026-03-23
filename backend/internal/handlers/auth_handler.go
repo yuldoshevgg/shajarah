@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/guregu/null.v4/zero"
 )
 
 type AuthHandler struct {
@@ -30,16 +29,23 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	person := models.Person{
-		ID:        uuid.New().String(),
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Gender:    req.Gender,
-		CreatedAt: time.Now(),
+	if existing, _ := h.userRepo.GetUserByEmail(c.Request.Context(), req.Email); existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
+		return
 	}
 
+	email := req.Email
+	person := models.Person{
+		ID:         uuid.New().String(),
+		Email:      &email,
+		FirstName:  req.FirstName,
+		LastName:   req.LastName,
+		Gender:     req.Gender,
+		Visibility: "family_only",
+		CreatedAt:  time.Now(),
+	}
 	if err := h.personRepo.CreatePerson(c.Request.Context(), &person); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create person profile"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create person profile: " + err.Error()})
 		return
 	}
 
@@ -52,13 +58,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user := models.User{
 		ID:           uuid.New().String(),
 		Email:        req.Email,
-		PersonID:     zero.StringFrom(person.ID),
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now(),
 	}
-
 	if err := h.userRepo.CreateUser(c.Request.Context(), &user); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
+		return
+	}
+
+	// Link the user to their person node so GetPersonIDForUser works immediately
+	if err := h.userRepo.LinkUserToPerson(c.Request.Context(), uuid.New().String(), user.ID, person.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to link user to person: " + err.Error()})
 		return
 	}
 
@@ -68,7 +78,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": token, "user": user, "person": person})
+	// Return person_id in the response so the frontend can store it
+	c.JSON(http.StatusCreated, gin.H{
+		"token":     token,
+		"user":      user,
+		"person":    person,
+		"person_id": person.ID,
+	})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -89,18 +105,24 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := middleware.GenerateToken(user.ID, user.PersonID.String)
+	// Look up the person linked to this user via user_person_links
+	personID, _ := h.userRepo.GetPersonIDForUser(c.Request.Context(), user.ID)
+
+	token, err := middleware.GenerateToken(user.ID, personID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+	c.JSON(http.StatusOK, gin.H{
+		"token":     token,
+		"user":      user,
+		"person_id": personID,
+	})
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	userID := c.GetString("user_id")
-	personID := c.GetString("person_id")
 
 	user, err := h.userRepo.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
@@ -108,10 +130,18 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 		return
 	}
 
+	// Resolve person via user_person_links (JWT claim may be stale after re-link)
+	personID, _ := h.userRepo.GetPersonIDForUser(c.Request.Context(), userID)
+
+	// Fall back to JWT claim if no link row exists yet
+	if personID == "" {
+		personID = c.GetString("person_id")
+	}
+
 	var person *models.Person
 	if personID != "" {
 		person, _ = h.personRepo.GetPersonByID(c.Request.Context(), personID)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"user": user, "person": person})
+	c.JSON(http.StatusOK, gin.H{"user": user, "person": person, "person_id": personID})
 }

@@ -7,6 +7,7 @@ import {
     NODE_W,
     NODE_H,
     V_GAP,
+    SiblingLine,
 } from "../lib/treeLayout"
 import PersonCard, { PersonCardData } from "./PersonCard"
 
@@ -14,6 +15,7 @@ interface Props {
     persons: PersonCardData[]
     parentChild: { parentId: string; childId: string }[]
     spouses: { person1Id: string; person2Id: string }[]
+    siblings?: { person1Id: string; person2Id: string }[]
     selectedId?: string | null
     onSelect?: (id: string) => void
     onOpen?: (id: string) => void
@@ -23,11 +25,12 @@ const PADDING = 80
 const GREEN = "#81C784"
 const GREEN_MID = "#A5D6A7"
 
-export default function FamilyTree({ persons, parentChild, spouses, selectedId, onSelect, onOpen }: Props) {
+export default function FamilyTree({ persons, parentChild, spouses, siblings = [], selectedId, onSelect, onOpen }: Props) {
     const layout = computeTreeLayout(
-        persons.map(p => ({ id: p.id })),
+        persons.map(p => ({ id: p.id, gender: p.gender })),
         parentChild,
         spouses,
+        siblings,
     )
     const personMap = new Map(persons.map(p => [p.id, p]))
 
@@ -203,9 +206,9 @@ export default function FamilyTree({ persons, parentChild, spouses, selectedId, 
                             <g key={sl.id}>
                                 <line x1={x1} y1={y} x2={x2} y2={y} stroke={GREEN} strokeWidth={2.5} />
                                 <text
-                                    x={midX} y={y - 4}
+                                    x={midX} y={y - 5}
                                     textAnchor="middle"
-                                    fontSize={11}
+                                    fontSize={12}
                                     fill={GREEN}
                                     fontWeight={600}
                                     fontFamily="system-ui"
@@ -213,20 +216,10 @@ export default function FamilyTree({ persons, parentChild, spouses, selectedId, 
                                 >
                                     ♥
                                 </text>
-                                <text
-                                    x={midX} y={y - 16}
-                                    textAnchor="middle"
-                                    fontSize={9.5}
-                                    fill={GREEN}
-                                    fontWeight={600}
-                                    fontFamily="system-ui, sans-serif"
-                                    style={{ userSelect: "none" }}
-                                >
-                                    Husband · Wife
-                                </text>
                             </g>
                         )
                     })}
+
 
                     {/* Parent-child connectors */}
                     {layout.childGroups.map(cg => {
@@ -240,14 +233,12 @@ export default function FamilyTree({ persons, parentChild, spouses, selectedId, 
                             <g key={cg.id} fill="none" strokeLinecap="round" strokeLinejoin="round">
                                 {/* Vertical from parent */}
                                 <line x1={px} y1={py} x2={px} y2={connY} stroke={GREEN_MID} strokeWidth={2.5} />
-                                {/* Horizontal bar */}
-                                {centers.length > 1 && (
-                                    <line
-                                        x1={Math.min(...centers)} y1={connY}
-                                        x2={Math.max(...centers)} y2={connY}
-                                        stroke={GREEN_MID} strokeWidth={2.5}
-                                    />
-                                )}
+                                {/* Horizontal bar — always spans from parent stem to all child stems */}
+                                <line
+                                    x1={Math.min(px, ...centers)} y1={connY}
+                                    x2={Math.max(px, ...centers)} y2={connY}
+                                    stroke={GREEN_MID} strokeWidth={2.5}
+                                />
                                 {/* Verticals to each child + label */}
                                 {centers.map((cx, i) => {
                                     const childId = cg.childCenters[i]?.id
@@ -292,8 +283,7 @@ export default function FamilyTree({ persons, parentChild, spouses, selectedId, 
                                 x={node.x + PADDING}
                                 y={node.y + PADDING}
                                 selected={node.id === selectedId}
-                                onClick={() => onSelect?.(node.id)}
-                                onDoubleClick={() => onOpen?.(node.id)}
+                                onClick={() => { onSelect?.(node.id); onOpen?.(node.id) }}
                             />
                         </div>
                     )
@@ -317,7 +307,7 @@ export default function FamilyTree({ persons, parentChild, spouses, selectedId, 
                     pointerEvents: "none",
                 }}
             >
-                🖱️ Drag to pan · Scroll to zoom · Click a member to view profile
+                🖱️ Drag to pan · Scroll to zoom · Click a member to open profile
             </div>
 
             {/* Zoom controls — bottom right */}

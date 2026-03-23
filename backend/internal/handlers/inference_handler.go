@@ -16,6 +16,19 @@ func NewInferenceHandler(svc *services.InferenceService) *InferenceHandler {
 	return &InferenceHandler{svc: svc}
 }
 
+func (h *InferenceHandler) FindRelationship(c *gin.Context) {
+	fromID := c.Param("id")
+	toID := c.Param("other")
+
+	label, err := h.svc.FindRelationship(c.Request.Context(), fromID, toID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"relation": label})
+}
+
 func (h *InferenceHandler) GetInferredRelatives(c *gin.Context) {
 	personID := c.Param("id")
 

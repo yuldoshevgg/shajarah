@@ -54,6 +54,8 @@ func main() {
 	treeService := services.NewFamilyTreeService()
 	genealogyService := services.NewGenealogyTreeService()
 	inferenceSvc := services.NewInferenceService()
+	kinshipSvc := services.NewKinshipService()
+	kinshipHandler := handlers.NewKinshipHandler(kinshipSvc)
 	gedcomSvc := services.NewGEDCOMService()
 
 	authHandler := handlers.NewAuthHandler(userRepo, personRepo)
@@ -65,7 +67,7 @@ func main() {
 
 	auth.GET("/auth/me", authHandler.GetMe)
 
-	familyHandler := handlers.NewFamilyHandler(familyRepo, memberRepo, personRepo, relRepo)
+	familyHandler := handlers.NewFamilyHandler(familyRepo, memberRepo, personRepo, relRepo, userRepo)
 	auth.POST("/families", familyHandler.CreateFamily)
 	auth.GET("/families", familyHandler.GetFamilies)
 	auth.GET("/families/:id", familyHandler.GetFamily)
@@ -92,11 +94,17 @@ func main() {
 
 	inferenceHandler := handlers.NewInferenceHandler(inferenceSvc)
 	auth.GET("/persons/:id/inferred-relatives", inferenceHandler.GetInferredRelatives)
+	auth.GET("/persons/:id/relationship-to/:other", inferenceHandler.FindRelationship)
 
-	invitationHandler := handlers.NewInvitationHandler(invitationRepo, memberRepo, familyRepo, userRepo, notifRepo)
+	auth.GET("/persons/:id/kinship/:other", kinshipHandler.GetKinship)
+	auth.GET("/persons/:id/kinship-map", kinshipHandler.GetKinshipMap)
+
+	invitationHandler := handlers.NewInvitationHandler(invitationRepo, memberRepo, familyRepo, userRepo, notifRepo, personRepo, relRepo, treeService, genealogyService)
+	r.GET("/invitations/:token/preview", invitationHandler.GetInvitation)
 	auth.POST("/families/:id/invite", invitationHandler.Invite)
 	auth.GET("/families/:id/invitations", invitationHandler.ListInvitations)
 	auth.POST("/invitations/:token/accept", invitationHandler.AcceptInvitation)
+	auth.POST("/families/:id/join", invitationHandler.JoinFamily)
 
 	photoHandler := handlers.NewPhotoHandler(photoRepo)
 	auth.POST("/persons/:id/photos", photoHandler.UploadPhoto)
@@ -105,10 +113,12 @@ func main() {
 	storyHandler := handlers.NewStoryHandler(storyRepo)
 	auth.POST("/stories", storyHandler.CreateStory)
 	auth.GET("/stories/:person_id", storyHandler.GetStories)
+	auth.GET("/families/:id/stories", storyHandler.GetFamilyStories)
 
 	eventHandler := handlers.NewEventHandler(eventRepo)
 	auth.POST("/events", eventHandler.CreateEvent)
 	auth.GET("/events/:person_id", eventHandler.GetEvents)
+	auth.GET("/families/:id/reminders", eventHandler.GetFamilyReminders)
 
 	treeHandler := handlers.NewTreeHandler(treeService, genealogyService)
 	auth.GET("/family-tree/:family_id", treeHandler.GetFamilyTree)
