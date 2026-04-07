@@ -66,7 +66,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Link the user to their person node so GetPersonIDForUser works immediately
 	if err := h.userRepo.LinkUserToPerson(c.Request.Context(), uuid.New().String(), user.ID, person.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to link user to person: " + err.Error()})
 		return
@@ -119,6 +118,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"user":      user,
 		"person_id": personID,
 	})
+}
+
+func (h *AuthHandler) UpdatePlan(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req struct {
+		Plan string `json:"plan" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Plan != "free" && req.Plan != "premium" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "plan must be 'free' or 'premium'"})
+		return
+	}
+
+	if err := h.userRepo.UpdateUserPlan(c.Request.Context(), userID, req.Plan); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update plan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"plan": req.Plan})
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {

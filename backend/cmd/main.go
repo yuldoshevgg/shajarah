@@ -25,6 +25,10 @@ func main() {
 
 	database.Connect()
 
+	if err := database.RunMigrations("migrations"); err != nil {
+		panic("failed to run migrations: " + err.Error())
+	}
+
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.Logger())
@@ -63,6 +67,7 @@ func main() {
 	auth.Use(middleware.RequireAuth())
 
 	auth.GET("/auth/me", authHandler.GetMe)
+	auth.PATCH("/auth/plan", authHandler.UpdatePlan)
 
 	familyHandler := handlers.NewFamilyHandler(familyRepo, memberRepo, personRepo, relRepo, userRepo)
 	auth.POST("/families", familyHandler.CreateFamily)

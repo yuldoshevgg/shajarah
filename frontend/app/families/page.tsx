@@ -6,6 +6,9 @@ import { Plus, Settings, TreePine, ArrowRight, Sparkles } from "lucide-react"
 import { getFamilies, createFamily, Family } from "@/services/familyService"
 import { isAuthenticated } from "@/lib/auth"
 import AppSidebar from "@/components/AppSidebar"
+import AdsBanner from "@/components/AdsBanner"
+import { apiFetch } from "@/lib/apiFetch"
+import API_BASE from "@/services/api"
 import { useT } from "@/lib/i18n"
 import { useBreakpoint } from "@/lib/useBreakpoint"
 
@@ -15,6 +18,7 @@ export default function FamiliesPage() {
     const { isMobile } = useBreakpoint()
     const [families, setFamilies] = useState<Family[]>([])
     const [loading, setLoading] = useState(true)
+    const [userPlan, setUserPlan] = useState<"free" | "premium">("free")
 
     // "Name Your Family Tree" modal
     const [modalOpen, setModalOpen] = useState(false)
@@ -27,6 +31,9 @@ export default function FamiliesPage() {
         getFamilies()
             .then(list => { setFamilies(list); setLoading(false) })
             .catch(() => setLoading(false))
+        apiFetch(`${API_BASE}/auth/me`).then(r => r.json()).then(data => {
+            setUserPlan(data.user?.plan ?? "free")
+        }).catch(() => {})
     }, [router])
 
     async function handleCreate() {
@@ -167,6 +174,13 @@ export default function FamiliesPage() {
                         </button>
                     )}
                 </section>
+
+                {/* Ads banner — visible to free users only */}
+                {userPlan === "free" && (
+                    <div style={{ padding: "0 24px 24px" }}>
+                        <AdsBanner />
+                    </div>
+                )}
 
                 {/* Divider */}
                 <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 0 0 0" }} />

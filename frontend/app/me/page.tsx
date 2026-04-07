@@ -4,14 +4,16 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
     Edit2, TreePine, Camera, Calendar, Mail,
-    MapPin, Save, X, Settings,
+    MapPin, Save, X, Settings, Crown, Sparkles,
 } from "lucide-react"
 import { apiFetch } from "@/lib/apiFetch"
 import { isAuthenticated } from "@/lib/auth"
 import API_BASE from "@/services/api"
 import { updatePerson } from "@/services/personEditService"
+import { upgradePlan } from "@/services/authService"
 import { Person } from "@/services/personService"
 import AppSidebar from "@/components/AppSidebar"
+import AdsBanner from "@/components/AdsBanner"
 import { useT } from "@/lib/i18n"
 import { useBreakpoint } from "@/lib/useBreakpoint"
 
@@ -44,6 +46,8 @@ export default function MePage() {
 
     const [person, setPerson]     = useState<Person | null>(null)
     const [userEmail, setUserEmail] = useState("")
+    const [userPlan, setUserPlan]   = useState<"free" | "premium">("free")
+    const [planLoading, setPlanLoading] = useState(false)
     const [userCreatedAt, setUserCreatedAt] = useState("")
     const [relatives, setRelatives] = useState<Record<string, Relative[]>>({})
     const [lineage, setLineage]   = useState<LineagePerson[]>([])
@@ -76,6 +80,7 @@ export default function MePage() {
                 setBirthDate(p.birth_date ? p.birth_date.split("T")[0] : "")
                 setBiography(p.biography ?? "")
                 setUserEmail(data.user?.email ?? "")
+                setUserPlan((data.user?.plan as "free" | "premium") ?? "free")
                 setUserCreatedAt(data.user?.created_at ?? "")
 
                 // fetch relatives
@@ -272,6 +277,13 @@ export default function MePage() {
                         {error && (
                             <div style={{ background: "#FFEBEE", borderRadius: 10, padding: "10px 16px", marginBottom: 20, color: "#C62828", fontSize: 13 }}>
                                 {error}
+                            </div>
+                        )}
+
+                        {/* Ads banner — visible to free users only */}
+                        {userPlan === "free" && (
+                            <div style={{ marginBottom: 20 }}>
+                                <AdsBanner />
                             </div>
                         )}
 
@@ -473,6 +485,95 @@ export default function MePage() {
                                         <p style={{ fontSize: 15, color: person.biography ? "#555" : "#BDBDBD", lineHeight: 1.65 }}>
                                             {person.biography || t("me_no_bio")}
                                         </p>
+                                    )}
+                                </div>
+
+                                {/* Plan & Subscription */}
+                                <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", position: "relative" }}>
+                                    {userPlan === "premium" && (
+                                        <div style={{
+                                            position: "absolute", top: 0, left: 0, right: 0, height: 4,
+                                            background: "linear-gradient(90deg, #F57F17, #FFB300, #F57F17)",
+                                        }} />
+                                    )}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1A1A2E" }}>{t("me_plan_title")}</h3>
+                                        {userPlan === "premium" ? (
+                                            <span style={{
+                                                display: "flex", alignItems: "center", gap: 5,
+                                                fontSize: 12, fontWeight: 700, padding: "4px 12px",
+                                                borderRadius: 20, background: "#FFF8E1", color: "#F57F17",
+                                            }}>
+                                                <Crown size={12} /> Premium
+                                            </span>
+                                        ) : (
+                                            <span style={{
+                                                fontSize: 12, fontWeight: 700, padding: "4px 12px",
+                                                borderRadius: 20, background: "#F5F5F5", color: "#9E9E9E",
+                                            }}>
+                                                Free
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {userPlan === "free" ? (
+                                        <div>
+                                            <div style={{
+                                                background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                                                borderRadius: 14, padding: "18px 20px", marginBottom: 14,
+                                            }}>
+                                                <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{t("me_plan_upgrade_title")}</p>
+                                                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, marginBottom: 14 }}>{t("me_plan_upgrade_desc")}</p>
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                                                    {[t("me_plan_feat1"), t("me_plan_feat2"), t("me_plan_feat3")].map((feat, i) => (
+                                                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#4CAF50", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                                <span style={{ fontSize: 10, color: "#fff", fontWeight: 900 }}>✓</span>
+                                                            </div>
+                                                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{feat}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    onClick={async () => { setPlanLoading(true); try { await upgradePlan("premium"); setUserPlan("premium") } catch {} finally { setPlanLoading(false) } }}
+                                                    disabled={planLoading}
+                                                    style={{
+                                                        width: "100%", padding: "11px", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                                                        background: "linear-gradient(135deg, #4CAF50, #2E7D32)",
+                                                        color: "#fff", border: "none", borderRadius: 10,
+                                                        fontSize: 14, fontWeight: 700, cursor: planLoading ? "not-allowed" : "pointer",
+                                                        boxShadow: "0 4px 14px rgba(76,175,80,0.4)", opacity: planLoading ? 0.7 : 1,
+                                                    }}
+                                                >
+                                                    <Sparkles size={15} /> {planLoading ? "..." : t("me_plan_upgrade_btn")}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                                                {[t("me_plan_feat1"), t("me_plan_feat2"), t("me_plan_feat3")].map((feat, i) => (
+                                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#4CAF50", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                            <span style={{ fontSize: 10, color: "#fff", fontWeight: 900 }}>✓</span>
+                                                        </div>
+                                                        <span style={{ fontSize: 13, color: "#555" }}>{feat}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button
+                                                onClick={async () => { setPlanLoading(true); try { await upgradePlan("free"); setUserPlan("free") } catch {} finally { setPlanLoading(false) } }}
+                                                disabled={planLoading}
+                                                style={{
+                                                    padding: "8px 16px", background: "#F5F5F5", color: "#888",
+                                                    border: "none", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                                                    cursor: planLoading ? "not-allowed" : "pointer",
+                                                    opacity: planLoading ? 0.7 : 1,
+                                                }}
+                                            >
+                                                {planLoading ? "..." : t("me_plan_downgrade_btn")}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

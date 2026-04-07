@@ -1,9 +1,10 @@
 import API_BASE from "./api"
-import { setToken, setPersonId } from "@/lib/auth"
+import { setToken, setPersonId, getToken } from "@/lib/auth"
 
 export interface AuthUser {
     id: string
     email: string
+    plan: "free" | "premium"
     created_at: string
 }
 
@@ -57,4 +58,20 @@ export async function login(email: string, password: string): Promise<AuthRespon
     setToken(data.token)
     if (data.person_id) setPersonId(data.person_id)
     return data
+}
+
+export async function upgradePlan(plan: "free" | "premium"): Promise<{ plan: string }> {
+    const res = await fetch(`${API_BASE}/auth/plan`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ plan }),
+    })
+    if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? "Failed to update plan")
+    }
+    return res.json()
 }

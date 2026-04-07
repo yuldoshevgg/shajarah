@@ -363,6 +363,22 @@ export const translations = {
         me_about_me: "Men haqimda",
         me_bio_placeholder: "Oilangizga o'zingiz haqingizda ayting…",
         me_no_bio: "Hali tarjimai hol yo'q. Tahrirlash tugmasini bosing.",
+
+        // ── Reja / Obuna ─────────────────────────────────────
+        me_plan_title: "Reja va obuna",
+        me_plan_upgrade_title: "Premium rejalarga o'ting",
+        me_plan_upgrade_desc: "Reklama yo'q, cheksiz imkoniyatlar va eksklyuziv funksiyalar.",
+        me_plan_feat1: "Reklama ko'rsatilmaydi",
+        me_plan_feat2: "Cheksiz oila a'zolari",
+        me_plan_feat3: "Eksport va import imkoniyatlari",
+        me_plan_upgrade_btn: "Premiumga o'tish",
+        me_plan_downgrade_btn: "Bepul rejaga qaytish",
+
+        // ── Reklama banneri ──────────────────────────────────
+        ads_title: "Shajarah Premium",
+        ads_subtitle: "Reklamasiz va cheksiz funksiyalar bilan ishlang",
+        ads_upgrade_cta: "Premiumga o'tish",
+
         me_my_parents: "Mening ota-onam",
         me_my_siblings: "Aka-ukalarim / opa-singillarim",
         me_view_tree: "Oila shajarasidagi o'rnimni ko'rish →",
@@ -940,6 +956,22 @@ export const translations = {
         me_about_me: "Обо мне",
         me_bio_placeholder: "Расскажите семье о себе…",
         me_no_bio: "Биографии пока нет. Нажмите Редактировать профиль.",
+
+        // ── План / Подписка ───────────────────────────────────
+        me_plan_title: "План и подписка",
+        me_plan_upgrade_title: "Перейдите на Premium",
+        me_plan_upgrade_desc: "Без рекламы, неограниченные возможности и эксклюзивные функции.",
+        me_plan_feat1: "Без рекламы",
+        me_plan_feat2: "Неограниченные члены семьи",
+        me_plan_feat3: "Экспорт и импорт данных",
+        me_plan_upgrade_btn: "Перейти на Premium",
+        me_plan_downgrade_btn: "Вернуться к бесплатному",
+
+        // ── Рекламный баннер ──────────────────────────────────
+        ads_title: "Shajarah Premium",
+        ads_subtitle: "Работайте без рекламы и с неограниченными функциями",
+        ads_upgrade_cta: "Перейти на Premium",
+
         me_my_parents: "Мои родители",
         me_my_siblings: "Мои братья и сёстры",
         me_view_tree: "Моё место в дереве →",
@@ -1500,6 +1532,22 @@ export const translations = {
         me_about_me: "About Me",
         me_bio_placeholder: "Tell your family about yourself…",
         me_no_bio: "No bio yet. Click Edit Profile to add one.",
+
+        // ── Plan / Subscription ───────────────────────────────
+        me_plan_title: "Plan & Subscription",
+        me_plan_upgrade_title: "Upgrade to Premium",
+        me_plan_upgrade_desc: "No ads, unlimited features, and exclusive capabilities.",
+        me_plan_feat1: "No advertisements",
+        me_plan_feat2: "Unlimited family members",
+        me_plan_feat3: "Export and import data",
+        me_plan_upgrade_btn: "Upgrade to Premium",
+        me_plan_downgrade_btn: "Downgrade to Free",
+
+        // ── Ads banner ────────────────────────────────────────
+        ads_title: "Shajarah Premium",
+        ads_subtitle: "Work without ads and with unlimited features",
+        ads_upgrade_cta: "Go Premium",
+
         me_my_parents: "My Parents",
         me_my_siblings: "My Siblings",
         me_view_tree: "View My Position in Family Tree →",

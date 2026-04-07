@@ -528,12 +528,13 @@ function FamilySwitcher({
 interface UserProfile {
     id: string
     email: string
+    plan: "free" | "premium"
     first_name?: string
     last_name?: string
 }
 
 interface MeResponse {
-    user: { id: string; email: string }
+    user: { id: string; email: string; plan: "free" | "premium" }
     person?: { first_name?: string; last_name?: string }
 }
 
@@ -577,6 +578,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
             setUser({
                 id: data.user.id,
                 email: data.user.email,
+                plan: data.user.plan ?? "free",
                 first_name: data.person?.first_name,
                 last_name: data.person?.last_name,
             })
@@ -810,9 +812,29 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                         {userInitials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#1A1A2E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {userName}
-                        </p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 1 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#1A1A2E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 110 }}>
+                                {userName}
+                            </p>
+                            {user?.plan === "premium" ? (
+                                <span style={{
+                                    fontSize: 10, fontWeight: 700, padding: "2px 7px",
+                                    borderRadius: 20, background: "#FFF8E1", color: "#F57F17",
+                                    letterSpacing: 0.3, flexShrink: 0,
+                                    display: "flex", alignItems: "center", gap: 3,
+                                }}>
+                                    <Crown size={9} style={{ flexShrink: 0 }} /> Premium
+                                </span>
+                            ) : (
+                                <span style={{
+                                    fontSize: 10, fontWeight: 700, padding: "2px 7px",
+                                    borderRadius: 20, background: "#F5F5F5", color: "#9E9E9E",
+                                    letterSpacing: 0.3, flexShrink: 0,
+                                }}>
+                                    Free
+                                </span>
+                            )}
+                        </div>
                         <p style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {userEmail}
                         </p>
