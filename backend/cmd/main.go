@@ -15,9 +15,8 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		panic("Error loading .env file")
-	}
+	// Load .env file only if it exists (in production, env vars are injected directly)
+	godotenv.Load()
 
 	if err := os.MkdirAll("uploads", 0755); err != nil {
 		panic("failed to create uploads directory")

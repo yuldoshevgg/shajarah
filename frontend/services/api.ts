@@ -1,3 +1,3 @@
-const API_BASE = "http://localhost:8080"
+const API_BASE = "/api"
 
 export default API_BASE
