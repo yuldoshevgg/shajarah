@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"shajarah-backend/internal/database"
@@ -21,18 +22,31 @@ func NewStoryHandler(repo *repository.StoryRepository) *StoryHandler {
 }
 
 func (h *StoryHandler) CreateStory(c *gin.Context) {
-	var req models.CreateStoryRequest
+	personID := c.PostForm("person_id")
+	title := c.PostForm("title")
+	content := c.PostForm("content")
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if personID == "" || title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "person_id and title are required"})
 		return
 	}
 
 	story := models.Story{
 		ID:       uuid.New().String(),
-		PersonID: req.PersonID,
-		Title:    req.Title,
-		Content:  req.Content,
+		PersonID: personID,
+		Title:    title,
+		Content:  content,
+	}
+
+	// Handle optional cover photo
+	if file, err := c.FormFile("photo"); err == nil {
+		ext := filepath.Ext(file.Filename)
+		filename := uuid.New().String() + ext
+		savePath := "uploads/" + filename
+		if err := c.SaveUploadedFile(file, savePath); err == nil {
+			url := "/uploads/" + filename
+			story.CoverURL = &url
+		}
 	}
 
 	if err := h.repo.CreateStory(c.Request.Context(), &story); err != nil {

@@ -143,6 +143,92 @@ func (h *AuthHandler) UpdatePlan(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"plan": req.Plan})
 }
 
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req struct {
+		CurrentPassword string `json:"current_password" binding:"required"`
+		NewPassword     string `json:"new_password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.userRepo.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "current password is incorrect"})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
+		return
+	}
+
+	if err := h.userRepo.UpdateUserPassword(c.Request.Context(), userID, string(hash)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
+}
+
+func (h *AuthHandler) GetPrivacy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	personID := c.GetString("person_id")
+	if personID == "" {
+		personID, _ = h.userRepo.GetPersonIDForUser(c.Request.Context(), userID)
+	}
+
+	if personID == "" {
+		c.JSON(http.StatusOK, gin.H{"visibility": "family_only"})
+		return
+	}
+
+	person, err := h.personRepo.GetPersonByID(c.Request.Context(), personID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"visibility": "family_only"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"visibility": person.Visibility})
+}
+
+func (h *AuthHandler) UpdatePrivacy(c *gin.Context) {
+	userID := c.GetString("user_id")
+	personID := c.GetString("person_id")
+	if personID == "" {
+		personID, _ = h.userRepo.GetPersonIDForUser(c.Request.Context(), userID)
+	}
+
+	var req struct {
+		Visibility string `json:"visibility" binding:"required,oneof=private family_only public"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if personID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no profile found"})
+		return
+	}
+
+	if err := h.personRepo.UpdatePersonVisibility(c.Request.Context(), personID, req.Visibility); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update privacy"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"visibility": req.Visibility})
+}
+
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	userID := c.GetString("user_id")
 

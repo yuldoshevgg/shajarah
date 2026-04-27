@@ -91,6 +91,14 @@ func (r *PersonRepository) UpdatePerson(ctx context.Context, p *models.Person) e
 	return err
 }
 
+func (r *PersonRepository) UpdatePersonVisibility(ctx context.Context, personID, visibility string) error {
+	_, err := database.DB.Exec(ctx,
+		`UPDATE persons SET visibility = $1 WHERE id = $2`,
+		visibility, personID,
+	)
+	return err
+}
+
 func (r *PersonRepository) SetPersonEmail(ctx context.Context, personID, email string) error {
 	_, err := database.DB.Exec(ctx, `UPDATE persons SET email = $1 WHERE id = $2 AND email IS NULL`, email, personID)
 	return err

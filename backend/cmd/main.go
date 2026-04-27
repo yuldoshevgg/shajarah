@@ -67,6 +67,9 @@ func main() {
 
 	auth.GET("/auth/me", authHandler.GetMe)
 	auth.PATCH("/auth/plan", authHandler.UpdatePlan)
+	auth.PATCH("/auth/change-password", authHandler.ChangePassword)
+	auth.GET("/auth/privacy", authHandler.GetPrivacy)
+	auth.PATCH("/auth/privacy", authHandler.UpdatePrivacy)
 
 	familyHandler := handlers.NewFamilyHandler(familyRepo, memberRepo, personRepo, relRepo, userRepo)
 	auth.POST("/families", familyHandler.CreateFamily)

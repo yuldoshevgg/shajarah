@@ -64,6 +64,14 @@ func (r *UserRepository) LinkUserToPerson(ctx context.Context, linkID, userID, p
 	return err
 }
 
+func (r *UserRepository) UpdateUserPassword(ctx context.Context, userID, hash string) error {
+	_, err := database.DB.Exec(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`,
+		hash, userID,
+	)
+	return err
+}
+
 // GetPersonIDForUser returns the person_id linked to a user via user_person_links.
 func (r *UserRepository) GetPersonIDForUser(ctx context.Context, userID string) (string, error) {
 	var personID string
