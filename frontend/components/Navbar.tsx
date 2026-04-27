@@ -70,7 +70,7 @@ export default function Navbar() {
         } finally { setActing(null) }
     }
 
-    const isNoNavRoute = pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/family-tree") || pathname?.startsWith("/invitations") || pathname?.startsWith("/person") || pathname === "/families" || pathname === "/me" || pathname === "/settings" || pathname === "/invite" || pathname === "/reminders" || pathname === "/memories"
+    const isNoNavRoute = pathname === "/" || pathname?.startsWith("/auth") || pathname?.startsWith("/family-tree") || pathname?.startsWith("/invitations") || pathname?.startsWith("/person") || pathname?.startsWith("/settings") || pathname === "/families" || pathname === "/me" || pathname === "/invite" || pathname === "/reminders" || pathname === "/memories"
     if (!loggedIn || isNoNavRoute) return null
 
     return (

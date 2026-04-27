@@ -450,8 +450,12 @@ export default function InvitationsPage() {
                             status = preview.status === "accepted" ? "accepted" : "pending"
                             memberCount = preview.member_count
                             familyId = preview.family_id
+                            if (status === "accepted" && !n.read) {
+                                markRead(n.id).catch(() => {})
+                            }
                         } catch {
                             status = "accepted"
+                            if (!n.read) markRead(n.id).catch(() => {})
                         }
                     }
 

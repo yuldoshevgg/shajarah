@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useBreakpoint } from "@/lib/useBreakpoint"
 import {
     TreePine, Bell, ImageIcon, User, Settings,
@@ -547,6 +547,7 @@ interface Props {
 
 export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: Props) {
     const router = useRouter()
+    const pathname = usePathname()
     const { t } = useT()
     const { isMobile, isTablet } = useBreakpoint()
     const [families, setFamilies] = useState<Family[]>([])
@@ -571,6 +572,9 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
             if (inv) {
                 const parsed = parseInviteNotif(inv)
                 if (parsed) setPendingInvite(parsed)
+                else setPendingInvite(null)
+            } else {
+                setPendingInvite(null)
             }
         }).catch(() => {})
 
@@ -583,7 +587,7 @@ export default function AppSidebar({ activeFamilyId, activeSection = "tree" }: P
                 last_name: data.person?.last_name,
             })
         }).catch(() => {})
-    }, [])
+    }, [pathname])
 
     useEffect(() => { setActiveId(activeFamilyId) }, [activeFamilyId])
 

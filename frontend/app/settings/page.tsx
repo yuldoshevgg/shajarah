@@ -44,8 +44,8 @@ export default function SettingsPage() {
             emoji: "👤",
             items: [
                 { icon: User,   key: "profile",   label: t("settings_profile_settings"),  subtitle: t("settings_profile_subtitle"),          type: "nav" as const,         path: "/me" },
-                { icon: Lock,   key: "password",  label: t("settings_change_password"),    subtitle: t("settings_change_password_subtitle"),  type: "nav" as const },
-                { icon: Shield, key: "privacy",   label: t("settings_privacy"),            subtitle: t("settings_privacy_subtitle"),          type: "nav" as const },
+                { icon: Lock,   key: "password",  label: t("settings_change_password"),    subtitle: t("settings_change_password_subtitle"),  type: "nav" as const, path: "/settings/password" },
+                { icon: Shield, key: "privacy",   label: t("settings_privacy"),            subtitle: t("settings_privacy_subtitle"),          type: "nav" as const, path: "/settings/privacy" },
             ],
         },
         {

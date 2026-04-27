@@ -16,6 +16,7 @@ interface FamilyStory {
     person_id: string
     title: string
     content: string
+    cover_url?: string | null
     created_at: string
     first_name: string
     last_name: string
@@ -45,6 +46,8 @@ export default function MemoriesPage() {
     const [content, setContent] = useState("")
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState("")
+    const [photoFile, setPhotoFile] = useState<File | null>(null)
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const photoInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -66,6 +69,17 @@ export default function MemoriesPage() {
         s.content.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null
+        setPhotoFile(file)
+        if (file) {
+            const url = URL.createObjectURL(file)
+            setPhotoPreview(url)
+        } else {
+            setPhotoPreview(null)
+        }
+    }
+
     const handleSave = async () => {
         if (!title.trim() || !content.trim()) return
         const personId = getPersonId()
@@ -73,24 +87,24 @@ export default function MemoriesPage() {
         setSaving(true)
         setSaveError("")
         try {
-            const res = await apiFetch(`${API_BASE}/stories`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ person_id: personId, title: title.trim(), content: content.trim() }),
-            })
+            const form = new FormData()
+            form.append("person_id", personId)
+            form.append("title", title.trim())
+            form.append("content", content.trim())
+            if (photoFile) form.append("photo", photoFile)
+
+            const res = await apiFetch(`${API_BASE}/stories`, { method: "POST", body: form })
             if (!res.ok) throw new Error("Failed to save")
-            const newStory = await res.json()
-            // Re-fetch to get first_name/last_name
             if (family) {
                 apiFetch(`${API_BASE}/families/${family.id}/stories`)
                     .then(r => r.json())
                     .then(d => setStories(d.stories ?? []))
                     .catch(() => {})
-            } else {
-                setStories(prev => [{ ...newStory, first_name: "", last_name: "" }, ...prev])
             }
             setTitle("")
             setContent("")
+            setPhotoFile(null)
+            setPhotoPreview(null)
             setShowAddPanel(false)
         } catch {
             setSaveError(t("memories_save"))
@@ -212,12 +226,28 @@ export default function MemoriesPage() {
                                 </div>
                                 {saveError && <p style={{ color: "#FFCDD2", fontSize: 13, marginTop: 10 }}>{saveError}</p>}
                                 <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-                                    <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} />
+                                    <input
+                                        ref={photoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: "none" }}
+                                        onChange={handlePhotoSelect}
+                                    />
                                     <button
                                         onClick={() => photoInputRef.current?.click()}
-                                        style={{ flex: 1, padding: 12, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                                        style={{
+                                            flex: 1, padding: 12, borderRadius: 12,
+                                            background: photoPreview ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)",
+                                            border: photoPreview ? "1px solid rgba(255,255,255,0.6)" : "1px solid rgba(255,255,255,0.3)",
+                                            color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                                            overflow: "hidden", position: "relative",
+                                        }}
                                     >
-                                        <Camera size={16} /> {t("memories_upload_photo")}
+                                        {photoPreview
+                                            ? <><img src={photoPreview} alt="" style={{ width: 22, height: 22, borderRadius: 4, objectFit: "cover" }} />{photoFile?.name}</>
+                                            : <><Camera size={16} /> {t("memories_upload_photo")}</>
+                                        }
                                     </button>
                                     <button
                                         onClick={handleSave}
@@ -251,8 +281,11 @@ export default function MemoriesPage() {
                                         onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.07)" }}
                                     >
                                         {/* Color banner */}
-                                        <div style={{ height: 140, background: CARD_COLORS[idx % CARD_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                                            <span style={{ fontSize: 52, opacity: 0.4 }}>📖</span>
+                                        <div style={{ height: 140, background: CARD_COLORS[idx % CARD_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                                            {story.cover_url
+                                                ? <img src={story.cover_url} alt={story.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                                                : <span style={{ fontSize: 52, opacity: 0.4 }}>📖</span>
+                                            }
                                             {/* Date badge */}
                                             <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}>
                                                 <Calendar size={11} color="#fff" />
@@ -313,8 +346,11 @@ export default function MemoriesPage() {
                         onClick={e => e.stopPropagation()}
                         style={{ background: "#fff", borderRadius: isMobile ? 20 : 24, overflow: "hidden", width: isMobile ? "calc(100vw - 32px)" : 640, maxHeight: isMobile ? "90vh" : "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)" }}
                     >
-                        <div style={{ height: 200, background: CARD_COLORS[stories.indexOf(selectedStory) % CARD_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                            <span style={{ fontSize: 72, opacity: 0.4 }}>📖</span>
+                        <div style={{ height: 200, background: CARD_COLORS[stories.indexOf(selectedStory) % CARD_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                            {selectedStory.cover_url
+                                ? <img src={selectedStory.cover_url} alt={selectedStory.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                                : <span style={{ fontSize: 72, opacity: 0.4 }}>📖</span>
+                            }
                             <button
                                 onClick={() => setSelectedStory(null)}
                                 style={{ position: "absolute", top: 16, right: 16, background: "rgba(0,0,0,0.4)", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}

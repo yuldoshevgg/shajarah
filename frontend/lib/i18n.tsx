@@ -301,6 +301,19 @@ export const translations = {
         settings_lang_ru: "Русский",
         settings_lang_en: "English",
 
+        change_password_current: "Joriy parol",
+        change_password_new: "Yangi parol",
+        change_password_confirm: "Yangi parolni tasdiqlang",
+        change_password_save: "Parolni o'zgartirish",
+        change_password_success: "Parol muvaffaqiyatli o'zgartirildi",
+        change_password_mismatch: "Yangi parollar mos kelmaydi",
+        change_password_wrong: "Joriy parol noto'g'ri",
+        change_password_min: "Yangi parol kamida 8 ta belgi bo'lishi kerak",
+        privacy_profile_visibility: "Profil ko'rinishi",
+        privacy_save: "Saqlash",
+        privacy_saved: "Saqlandi!",
+        privacy_back: "Orqaga",
+
         // ── Yon panel ────────────────────────────────────────
         sidebar_tagline: "Oila shajarasi ilovasi",
         sidebar_tree: "Shajara",
@@ -614,7 +627,7 @@ export const translations = {
         tree_members_count: "{n} a'zo",
         tree_generations_count: "{n} avlod",
         tree_search_member: "A'zo qidirish\u2026",
-        tree_add_member: "+ A'zo qo'shish",
+        tree_add_member: "A'zo qo'shish",
         tree_drag_hint: "\uD83D\uDDB1\uFE0F Siljitish uchun sudrang · Kattalashtirish uchun aylantiring · Ko'rish/qo'shish uchun bosing",
         tree_total_members: "Jami a'zolar",
         tree_invite_family: "+ Oilani taklif qilish",
@@ -893,6 +906,19 @@ export const translations = {
         settings_lang_uz: "O'zbek",
         settings_lang_ru: "Русский",
         settings_lang_en: "English",
+
+        change_password_current: "Текущий пароль",
+        change_password_new: "Новый пароль",
+        change_password_confirm: "Подтвердите новый пароль",
+        change_password_save: "Изменить пароль",
+        change_password_success: "Пароль успешно изменён",
+        change_password_mismatch: "Пароли не совпадают",
+        change_password_wrong: "Текущий пароль неверен",
+        change_password_min: "Новый пароль должен быть не менее 8 символов",
+        privacy_profile_visibility: "Видимость профиля",
+        privacy_save: "Сохранить",
+        privacy_saved: "Сохранено!",
+        privacy_back: "Назад",
 
         // ── Боковая панель ───────────────────────────────────
         sidebar_tagline: "Приложение семейного дерева",
@@ -1469,6 +1495,19 @@ export const translations = {
         settings_lang_uz: "O'zbek",
         settings_lang_ru: "Русский",
         settings_lang_en: "English",
+
+        change_password_current: "Current Password",
+        change_password_new: "New Password",
+        change_password_confirm: "Confirm New Password",
+        change_password_save: "Update Password",
+        change_password_success: "Password changed successfully",
+        change_password_mismatch: "New passwords don't match",
+        change_password_wrong: "Current password is incorrect",
+        change_password_min: "New password must be at least 8 characters",
+        privacy_profile_visibility: "Profile Visibility",
+        privacy_save: "Save",
+        privacy_saved: "Saved!",
+        privacy_back: "Back",
 
         // ── Sidebar ──────────────────────────────────────────
         sidebar_tagline: "Family Tree App",
